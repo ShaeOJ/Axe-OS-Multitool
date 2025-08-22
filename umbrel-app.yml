@@ -1,0 +1,17 @@
+manifestVersion: 1
+id: "axemon"
+name: "AxeMon"
+tagline: "A monitoring dashboard for Bitaxe miners"
+version: "0.1.0"
+description: "A Next.js application for monitoring Bitaxe ASIC miners."
+developer: "Community"
+website: ""
+repo: ""
+support: ""
+gallery: []
+permissions: []
+dependencies: []
+submitter: "Gemini"
+submission: ""
+port: 3000
+main-service: "axemon"

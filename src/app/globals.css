@@ -1,0 +1,212 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 16% 93%;
+    --foreground: 210 40% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 210 40% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 40% 10%;
+    --primary: 150 70% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 16% 90%;
+    --secondary-foreground: 210 40% 10%;
+    --muted: 210 16% 85%;
+    --muted-foreground: 210 16% 45%;
+    --accent: 150 70% 35%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 210 16% 85%;
+    --input: 210 16% 88%;
+    --ring: 150 70% 45%;
+    --chart-1: 150 70% 45%;
+    --chart-2: 150 70% 55%;
+    --chart-3: 150 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+  }
+  .dark {
+    --background: 210 10% 5%;
+    --foreground: 150 100% 70%;
+    --card: 210 10% 8%;
+    --card-foreground: 150 100% 70%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 150 100% 70%;
+    --primary: 150 100% 70%;
+    --primary-foreground: 210 10% 5%;
+    --secondary: 150 10% 17%;
+    --secondary-foreground: 150 100% 90%;
+    --muted: 150 10% 12%;
+    --muted-foreground: 150 100% 60%;
+    --accent: 150 100% 60%;
+    --accent-foreground: 210 10% 5%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 150 50% 25%;
+    --input: 150 10% 17%;
+    --ring: 150 100% 70%;
+    --chart-1: 150 100% 70%;
+    --chart-2: 200 100% 70%;
+    --chart-3: 50 100% 70%;
+    --chart-4: 300 100% 70%;
+    --chart-5: 250 100% 75%;
+  }
+}
+
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .glitch-text {
+    position: relative;
+    animation: glitch-shake 0.3s forwards;
+  }
+
+  .glitch-text::before,
+  .glitch-text::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: inherit;
+    color: inherit;
+  }
+
+  .glitch-text::before {
+    left: 2px;
+    text-shadow: -1px 0 red;
+    clip-path: polygon(0, 25%, 100%, 25%, 100%, 30%, 0, 30%);
+    animation: glitch-anim 2s infinite linear alternate-reverse;
+  }
+
+  .glitch-text::after {
+    left: -2px;
+    text-shadow: -1px 0 blue;
+    clip-path: polygon(0, 65%, 100%, 65%, 100%, 70%, 0, 70%);
+    animation: glitch-anim-2 3s infinite linear alternate-reverse;
+  }
+
+  @keyframes glitch-shake {
+    0% { transform: skewX(0deg); }
+    50% { transform: skewX(15deg); }
+    100% { transform: skewX(0deg); }
+  }
+
+  @keyframes glitch-anim {
+    0% { clip-path: polygon(0 0, 100% 0, 100% 5%, 0 5%); }
+    10% { clip-path: polygon(0 20%, 100% 20%, 100% 25%, 0 25%); }
+    20% { clip-path: polygon(0 40%, 100% 40%, 100% 45%, 0 45%); }
+    30% { clip-path: polygon(0 60%, 100% 60%, 100% 65%, 0 65%); }
+    40% { clip-path: polygon(0 80%, 100% 80%, 100% 85%, 0 85%); }
+    50% { clip-path: polygon(0 50%, 100% 50%, 100% 55%, 0 55%); }
+    60% { clip-path: polygon(0 70%, 100% 70%, 100% 75%, 0 75%); }
+    70% { clip-path: polygon(0 90%, 100% 90%, 100% 95%, 0 95%); }
+    80% { clip-path: polygon(0 30%, 100% 30%, 100% 35%, 0 35%); }
+    90% { clip-path: polygon(0 10%, 100% 10%, 100% 15%, 0 15%); }
+    100% { clip-path: polygon(0 0, 100% 0, 100% 5%, 0 5%); }
+  }
+
+  @keyframes glitch-anim-2 {
+    0% { clip-path: polygon(0 5%, 100% 5%, 100% 10%, 0 10%); }
+    10% { clip-path: polygon(0 25%, 100% 25%, 100% 30%, 0 30%); }
+    20% { clip-path: polygon(0 45%, 100% 45%, 100% 50%, 0 50%); }
+    30% { clip-path: polygon(0 65%, 100% 65%, 100% 70%, 0 70%); }
+    40% { clip-path: polygon(0 85%, 100% 85%, 100% 90%, 0 90%); }
+    50% { clip-path: polygon(0 55%, 100% 55%, 100% 60%, 0 60%); }
+    60% { clip-path: polygon(0 75%, 100% 75%, 100% 80%, 0 80%); }
+    70% { clip-path: polygon(0 95%, 100% 95%, 100% 100%, 0 100%); }
+    80% { clip-path: polygon(0 35%, 100% 35%, 100% 40%, 0 40%); }
+    90% { clip-path: polygon(0 15%, 100% 15%, 100% 20%, 0 20%); }
+    100% { clip-path: polygon(0 5%, 100% 5%, 100% 10%, 0 10%); }
+  }
+
+  .animate-power-on {
+    animation: power-on 0.7s ease-in-out forwards;
+    transform-origin: center;
+  }
+  
+  .animate-power-off {
+    animation: power-off 0.7s ease-in-out forwards;
+    transform-origin: center;
+  }
+  
+  @keyframes power-on {
+    0% {
+      transform: scaleY(0.01) scaleX(0);
+      opacity: 0;
+    }
+    30% {
+      transform: scaleY(0.01) scaleX(1);
+      opacity: 1;
+    }
+    60% {
+      transform: scaleY(1) scaleX(1);
+    }
+    100% {
+      transform: scaleY(1) scaleX(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes power-off {
+    0% {
+      transform: scaleY(1) scaleX(1);
+      opacity: 1;
+    }
+    30% {
+      transform: scaleY(0.01) scaleX(1);
+      opacity: 1;
+    }
+    60% {
+      transform: scaleY(0.01) scaleX(0);
+    }
+    100% {
+      transform: scaleY(0.01) scaleX(0);
+      opacity: 0;
+    }
+  }
+  
+  .hover-glow {
+    @apply transition-shadow duration-300;
+  }
+
+  .hover-glow:hover {
+    animation: wavy-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes wavy-glow {
+    0%, 100% {
+      box-shadow: 0 0 5px 0px hsl(var(--primary) / 0.4), 0 0 8px 0px hsl(var(--ring) / 0.3);
+    }
+    50% {
+      box-shadow: 0 0 10px 2px hsl(var(--primary) / 0.6), 0 0 16px 2px hsl(var(--ring) / 0.4);
+    }
+  }
+  
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-spin-slow {
+    animation: spin 3s linear infinite;
+  }
+}

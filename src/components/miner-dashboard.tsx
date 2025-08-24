@@ -198,7 +198,7 @@ export function MinerDashboard() {
             </h1>
           </div>
           <div className="flex-grow flex justify-center">
-             <GlobalStats minerStates={minerStates} isMounted={isMounted} />
+             {isMounted && <GlobalStats minerStates={minerStates} miners={miners} />}
           </div>
           <div className="flex items-center justify-end gap-2">
             <AddMinerDialog onAddMiner={handleAddMiner}>
@@ -209,7 +209,6 @@ export function MinerDashboard() {
             <ThemeSwitcher />
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-green-500" />
       </header>
 
       {isMounted && miners.length > 0 ? (

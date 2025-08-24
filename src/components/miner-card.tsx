@@ -101,41 +101,55 @@ const restartMiner = async (ip: string) => {
 
 const StatCircle = ({ value, max, label, unit, icon: Icon, accentColor, formatAsFloat }: { value: number; max: number; label: string; unit: string; icon: React.ElementType, accentColor: string, formatAsFloat?: boolean }) => {
     const percentage = max > 0 ? (value / max) * 100 : 0;
-    const circumference = 2 * Math.PI * 45;
-    const strokeDashoffset = circumference - (percentage / 100) * circumference;
+    const angle = (percentage / 100) * 270 - 135; // 270 degree arc, starting at -135
     const displayValue = formatAsFloat ? value.toFixed(2) : value.toFixed(0);
 
     return (
         <div className="flex flex-col items-center justify-center gap-2">
             <div className="relative h-32 w-32">
-                <svg className="h-full w-full" viewBox="0 0 100 100">
-                    <circle
+                <svg className="h-full w-full" viewBox="-10 -10 120 120">
+                    <defs>
+                        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                            <feMerge>
+                                <feMergeNode in="coloredBlur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                        <filter id="glow-strong" x="-100%" y="-100%" width="300%" height="300%">
+                            <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor={accentColor} />
+                        </filter>
+                    </defs>
+                    {/* Background Arc */}
+                    <path
+                        d="M 14.64 85.36 A 45 45 0 1 1 85.36 85.36"
                         className="stroke-current text-muted/30"
                         strokeWidth="8"
-                        cx="50"
-                        cy="50"
-                        r="45"
                         fill="transparent"
                     />
-                    <circle
+                    {/* Foreground Arc */}
+                    <path
+                        d="M 14.64 85.36 A 45 45 0 1 1 85.36 85.36"
                         className="stroke-current transition-all duration-500"
-                        style={{ color: accentColor }}
+                        style={{ color: accentColor, filter: 'url(#glow-strong)' }}
                         strokeWidth="8"
                         strokeLinecap="round"
-                        cx="50"
-                        cy="50"
-                        r="45"
                         fill="transparent"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={strokeDashoffset}
-                        transform="rotate(-90 50 50)"
+                        strokeOpacity={0.5}
+                        strokeDasharray={2 * Math.PI * 45 * (270 / 360)}
+                        strokeDashoffset={(2 * Math.PI * 45 * (270 / 360)) * (1 - percentage / 100)}
                     />
+                    {/* Needle */}
+                    <g transform={`rotate(${angle} 50 50)`} style={{ filter: 'url(#glow-strong)' }}>
+                        <polygon points="50,10 52,50 48,50" fill={accentColor} fillOpacity={0.7} />
+                        <circle cx="50" cy="50" r="4" fill={accentColor} fillOpacity={0.7} />
+                    </g>
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <p className="text-2xl font-bold">
+                    <p className="text-2xl font-bold" style={{ textShadow: `0 0 2px ${accentColor}, 0 0 2px ${accentColor}, 0 0 2px ${accentColor}, 0 0 2px ${accentColor}` }}>
                         <GlitchText probability={0.2}>{displayValue ?? '0'}</GlitchText>
-                    </p> 
-                    <p className="text-xs text-muted-foreground">{unit}</p>
+                    </p>
+                    <p className="text-xs text-muted-foreground" style={{ textShadow: `0 0 2px ${accentColor}, 0 0 2px ${accentColor}` }}>{unit}</p>
                 </div>
             </div>
             <div className="flex items-center gap-2">
@@ -462,9 +476,9 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state }: MinerCar
   
   const hashrateDisplay = useMemo(() => {
     if (hashrateInGhs >= 1000) {
-      return { value: hashrateInGhs / 1000, unit: 'TH/s', isFloat: true, max: 2 };
+      return { value: hashrateInGhs / 1000, unit: 'TH/s', isFloat: true, max: 3 };
     }
-    return { value: hashrateInGhs, unit: 'GH/s', isFloat: false, max: 1000 };
+    return { value: hashrateInGhs, unit: 'GH/s', isFloat: false, max: 3000 };
   }, [hashrateInGhs]);
 
   const freq = state.info?.frequency ?? 0;
@@ -512,7 +526,9 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state }: MinerCar
                           </CardTitle>
                           <CardDescription>{cardDescription}</CardDescription>
                       </div>
-                      {!isDetailsOpen && isCardOpen && <ShareAnimation trigger={animateShare} />}
+                      <div style={{ marginLeft: '4rem' }}>
+                        {!isDetailsOpen && isCardOpen && <ShareAnimation trigger={animateShare} />}
+                      </div>
                       {!isCardOpen && !isLoading && state.info && (
                           <div className="flex flex-col items-center">
                               <Badge variant="outline" className="flex items-center gap-1.5 whitespace-nowrap">
@@ -543,7 +559,6 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state }: MinerCar
                           onCheckedChange={(checked) => handleTunerSettingChange('enabled', checked)}
                           />
                       <Label htmlFor={`autotune-${minerConfig.ip}`} className="text-sm">Auto-Tuner</Label>
-                      
                           <Dialog open={isTunerSettingsOpen} onOpenChange={setIsTunerSettingsOpen}>
                               <DialogTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -614,7 +629,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state }: MinerCar
               <CardContent className="pt-0">
                 <div className="grid grid-cols-2 gap-4 place-items-stretch pt-6">
                     <StatCircle value={hashrateDisplay.value} max={hashrateDisplay.max} label="Hashrate" unit={hashrateDisplay.unit} icon={Zap} accentColor={minerConfig.accentColor} formatAsFloat={hashrateDisplay.isFloat} />
-                    <StatCircle value={freq} max={600} label="Frequency" unit="MHz" icon={Gauge} accentColor={minerConfig.accentColor} />
+                    <StatCircle value={freq} max={1000} label="Frequency" unit="MHz" icon={Gauge} accentColor={minerConfig.accentColor} />
 
                 {state.error && !state.info && (
                     <div className="col-span-2 text-center text-muted-foreground pt-4">

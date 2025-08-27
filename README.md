@@ -53,4 +53,30 @@ That's it! The application is now running locally on your machine. You can add y
 - **Persistent Configuration**: Your list of miners is saved in your browser, so you don't have to add them again every time.
 - **Historical Performance**: See a visual chart of your miner's hashrate and temperature over time.
 - **Responsive Design**: Monitor your miners from your desktop or mobile device.
-- **Auto-Tuning**: Automatically adjusts miner frequency and voltage to maintain target temperatures for optimal performance.
+
+### Auto-Tuning and Optimization
+
+The application features a sophisticated auto-tuner that works to maximize your miner's performance and efficiency.
+
+#### Temperature-Based Tuning
+
+The primary goal of the auto-tuner is to maintain the miner's core temperature around a `targetTemp` that you can configure. It does this by adjusting the frequency and core voltage based on the following logic:
+
+- **If the miner is too hot**: It will first try to decrease the frequency. If the frequency is already at its minimum, it will decrease the core voltage.
+- **If the miner is too cool**: It will increase the frequency and core voltage together to push the performance higher, as long as they are within the configured maximum limits.
+
+#### Auto-Optimization
+
+The "Auto Optimize" feature takes tuning a step further by automatically finding the most power-efficient settings for your miner while maintaining a high hashrate. Here's how it works:
+
+1.  **Data Collection**: The system continuously collects performance data (hashrate, temperature, frequency, and voltage) over a period of time, determined by the `autoOptimizeTriggerCycles` setting.
+
+2.  **Performance Analysis**: Once enough data is collected, the optimizer analyzes all the data points that fall within your `targetTemp` range. It identifies the maximum hashrate achieved during this period.
+
+3.  **Finding the Sweet Spot**: It then looks for all the settings that produced a hashrate within a certain percentage of that peak (defined by `efficiencyTolerancePercent`).
+
+4.  **Prioritizing Efficiency**: From that group of high-performing settings, it selects the one that used the **lowest core voltage**. This is the key to its efficiency-finding logic.
+
+5.  **Applying Optimal Settings**: Finally, it automatically applies these "optimal" settings (frequency and voltage) to your miner and notifies you of the change.
+
+In essence, it's a "set it and forget it" feature that fine-tunes your miner to strike the best balance between performance and power consumption.

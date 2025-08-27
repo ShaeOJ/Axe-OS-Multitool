@@ -210,3 +210,9 @@
     animation: spin 3s linear infinite;
   }
 }
+
+.share-animation-wrapper {
+  position: absolute;
+  right: 60px;
+  top: 10px;
+}

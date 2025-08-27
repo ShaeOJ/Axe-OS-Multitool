@@ -3,6 +3,7 @@ export type MinerConfig = {
   ip: string;
   name: string;
   accentColor: string;
+  tunerSettings: AutoTunerSettings;
 };
 
 // Updated structure for miner API response based on user-provided JSON

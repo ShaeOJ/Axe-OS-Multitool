@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import type { MinerConfig } from '@/lib/types';
 import { cn } from '@/lib/utils';
-
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const ACCENT_COLORS = [
     "hsl(var(--chart-1))",
@@ -41,11 +41,12 @@ const formSchema = z.object({
 
 type AddMinerDialogProps = {
   onAddMiner: (minerConfig: MinerConfig) => void;
-  children: React.ReactNode;
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
 };
 
-export function AddMinerDialog({ onAddMiner, children }: AddMinerDialogProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function AddMinerDialog({ onAddMiner, isOpen, onOpenChange }: AddMinerDialogProps) {
+  const isMobile = useIsMobile();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -62,15 +63,12 @@ export function AddMinerDialog({ onAddMiner, children }: AddMinerDialogProps) {
         accentColor: values.accentColor || ACCENT_COLORS[0],
     });
     form.reset();
-    setIsOpen(false);
+    onOpenChange(false);
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
-      <DialogContent className="w-full max-w-[95vw] sm:max-w-md overflow-y-auto max-h-[90vh]">
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className={cn("w-full max-w-md overflow-y-auto max-h-[90vh]", { "max-w-[95vw]": isMobile })}>
         <DialogHeader>
           <DialogTitle>Add a New Miner</DialogTitle>
           <DialogDescription>

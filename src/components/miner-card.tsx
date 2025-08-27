@@ -21,35 +21,14 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { cn } from '@/lib/utils';
 import { GlitchText } from './glitch-text';
-import { useLocalStorage } from '@/hooks/use-local-storage';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from './ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { ShareAnimation } from './share-animation';
 
-
-const defaultTunerSettings: AutoTunerSettings = {
-  enabled: false,
-  targetTemp: 85.0,
-  vrTargetTemp: 70.0, // °C
-  minFreq: 400.0,
-  maxFreq: 750.0,
-  minVolt: 1000.0, // mV
-  maxVolt: 1350.0, // mV
-  tempFreqStepDown: 5.0,
-  tempVoltStepDown: 100.0, // mV
-  tempFreqStepUp: 5.0,
-  tempVoltStepUp: 100.0, // mV
-  vrTempFreqStepDown: 5.0,
-  vrTempVoltStepDown: 100.0, // mV
-  flatlineDetectionEnabled: true,
-  flatlineHashrateRepeatCount: 5,
-  autoOptimizeEnabled: true,
-  autoOptimizeTriggerCycles: 60, // Run every 60 cycles (15 mins if 15s interval)
-  efficiencyTolerancePercent: 2.0,
-};
 
 // New state for advanced tuning logic
 type TuningState = {
@@ -172,14 +151,16 @@ const StatItem = ({ icon: Icon, label, value, unit, loading }: { icon: React.Ele
     </div>
   );
 
-export function MinerCard({ minerConfig, onRemove, isRemoving, state }: MinerCardProps) {
+export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMiner }: MinerCardProps) {
+  console.log('minerConfig', minerConfig);
+  console.log('state', state);
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
   const [isCardOpen, setIsCardOpen] = useState(true);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isChartDialogOpen, setIsChartDialogOpen] = useState(false);
   const [isTunerSettingsOpen, setIsTunerSettingsOpen] = useState(false);
-  const [tunerSettings, setTunerSettings] = useLocalStorage<AutoTunerSettings>(`tuner-${minerConfig.ip}`, defaultTunerSettings);
+  const { tunerSettings } = minerConfig;
   const [animateShare, setAnimateShare] = useState(0);
   const prevAcceptedSharesRef = useRef<number>();
 
@@ -262,7 +243,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state }: MinerCar
 
 
   const tuneMiner = useCallback(async (info: MinerInfo, history: MinerDataPoint[]) => {
-    if (!tunerSettings.enabled || !info.temp || !info.vrTemp || !info.frequency || !info.coreVoltage || !info.hashRate) {
+    if (!tunerSettings.enabled || info.temp == null || info.vrTemp == null || info.frequency == null || info.coreVoltage == null || info.hashRate == null) {
         return;
     }
 
@@ -378,10 +359,14 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state }: MinerCar
         if (new_freq + tempFreqStepUp <= maxFreq) {
             proposedChanges.frequency = new_freq + tempFreqStepUp;
             reason = "Increasing Freq";
+            if (new_volt + tempVoltStepUp <= maxVolt) {
+                proposedChanges.voltage = new_volt + tempVoltStepUp;
+                reason += " and Volt";
+            }
         } else if (new_volt + tempVoltStepUp <= maxVolt) {
             proposedChanges.voltage = new_volt + tempVoltStepUp;
             tuningState.current.lastActionWasVoltIncrease = true;
-            reason = "Increasing Volt";
+            reason = "Increasing Volt (Freq at Max)";
         } else {
             reason = "At Max Freq/Volt, no change";
         }
@@ -503,7 +488,8 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state }: MinerCar
     : '';
     
   const handleTunerSettingChange = (key: keyof AutoTunerSettings, value: string | boolean) => {
-    setTunerSettings(prev => ({ ...prev, [key]: typeof value === 'string' ? parseFloat(value) : value }));
+    const newTunerSettings = { ...tunerSettings, [key]: typeof value === 'string' ? parseFloat(value) : value };
+    updateMiner({ ip: minerConfig.ip, tunerSettings: newTunerSettings });
   };
 
   return (
@@ -526,7 +512,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state }: MinerCar
                           </CardTitle>
                           <CardDescription>{cardDescription}</CardDescription>
                       </div>
-                      <div style={{ marginLeft: '4rem' }}>
+                      <div className="share-animation-wrapper" style={{ marginLeft: '4rem' }}>
                         {!isDetailsOpen && isCardOpen && <ShareAnimation trigger={animateShare} />}
                       </div>
                       {!isCardOpen && !isLoading && state.info && (
@@ -580,7 +566,8 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state }: MinerCar
                                       Fine-tune the automatic tuning algorithm.
                                       </p>
                                   </div>
-                                  <div className="grid grid-cols-2 gap-4 py-4">
+                                  <ScrollArea className="h-[60vh] rounded-md border p-4">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
                                   {Object.entries(tunerSettings).map(([key, value]) => {
                                       const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                                       const isSwitch = typeof value === 'boolean';
@@ -602,7 +589,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state }: MinerCar
                                           <Input
                                           id={`${key}-${minerConfig.ip}`}
                                           type="number"
-                                          value={value}
+                                          value={value ?? ''}
                                           onChange={(e) => handleTunerSettingChange(key as keyof AutoTunerSettings, e.target.value)}
                                           className="h-8 text-sm"
                                           />
@@ -610,6 +597,10 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state }: MinerCar
                                       );
                                   })}
                                   </div>
+                                  </ScrollArea>
+                                  <DialogFooter>
+                                      <Button onClick={() => setIsTunerSettingsOpen(false)}>Done</Button>
+                                  </DialogFooter>
                                   </div>
                               </DialogContent>
                           </Dialog>
@@ -671,7 +662,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state }: MinerCar
                             <h4 className="font-semibold mb-2">Mining Stats</h4>
                             <div className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /><p>Accepted: {state.info?.sharesAccepted ?? 'N/A'}</p></div>
                             <div className="flex items-center gap-2"><X className="h-4 w-4 text-red-500" /><p>Rejected: {state.info?.sharesRejected ?? 'N/A'}</p></div>
-                            <div className="relative h-8">
+                            <div className="relative h-8 share-animation-wrapper">
                                 {isDetailsOpen && <ShareAnimation trigger={animateShare} />}
                             </div>
                         </div>
@@ -720,4 +711,5 @@ interface MinerCardProps {
   onRemove: (ip: string) => void;
   isRemoving: boolean;
   state: MinerState;
+  updateMiner: (miner: Partial<MinerConfig> & { ip: string }) => void;
 }

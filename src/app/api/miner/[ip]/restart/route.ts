@@ -5,10 +5,9 @@ const FETCH_TIMEOUT = 10000; // 10 seconds
 
 export async function POST(
   request: Request,
-  { params }: { params: { ip: string | Promise<string> } }
+  { params }: { params: Promise<{ ip: string }> }
 ) {
-  const resolvedParams = await params;
-  const ip = resolvedParams.ip;
+  const { ip } = await params;
   const restartUrl = `http://${ip}/api/system/restart`;
 
   try {

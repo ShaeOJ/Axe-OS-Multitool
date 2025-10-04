@@ -23,10 +23,9 @@ async function fetchWithTimeout(url: string, timeout: number) {
 
 export async function GET(
   request: Request,
-  { params }: { params: { ip: string | Promise<string> } }
+  { params }: { params: Promise<{ ip: string }> }
 ) {
-  const resolvedParams = await params;
-  const ip = resolvedParams.ip;
+  const { ip } = await params;
 
   for (const path of API_PATHS) {
     const url = `http://${ip}${path}`;

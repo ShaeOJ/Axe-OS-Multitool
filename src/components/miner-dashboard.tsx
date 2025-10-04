@@ -14,6 +14,7 @@ import type { MinerState, MinerInfo, MinerConfig } from '@/lib/types';
 import { ThemeSwitcher } from './theme-switcher';
 import { GlitchText } from './glitch-text';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { getMinerData } from '@/lib/tauri-api';
 
 const FETCH_INTERVAL = 15000; // 15 seconds
 const MAX_HISTORY_LENGTH = 360; // Keep 90 minutes of history (360 * 15s)
@@ -37,15 +38,8 @@ export function MinerDashboard() {
   }, []);
 
   const fetchMinerData = useCallback(async (ip: string) => {
-    const url = `/api/miner/${ip}`;
     try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `Proxy returned status ${response.status}`);
-        }
-
-        const info: MinerInfo = await response.json();
+        const info: MinerInfo = await getMinerData(ip);
 
         // It seems the voltage is reported in V, not mV. Let's convert it.
         if (info.coreVoltage && info.coreVoltage < 100) { // Heuristic: if value is small, it's in V.
@@ -130,7 +124,7 @@ export function MinerDashboard() {
     });
   }, [minerStates, toast, miners]);
 
-  const handleAddMiner = (minerConfig: MinerConfig) => {
+  const handleAddMiner = (minerConfig: Omit<MinerConfig, 'tunerSettings'>) => {
     if (miners.some(m => m.ip === minerConfig.ip)) {
       toast({
         variant: "default",
@@ -194,9 +188,7 @@ export function MinerDashboard() {
 
   return (
     <div className="container py-8 w-full">
-      <AddMinerDialog onAddMiner={handleAddMiner} isOpen={isAddMinerDialogOpen} onOpenChange={setIsAddMinerDialogOpen}>
-        <></>
-      </AddMinerDialog>
+      <AddMinerDialog onAddMiner={handleAddMiner} isOpen={isAddMinerDialogOpen} onOpenChange={setIsAddMinerDialogOpen} />
       {isMounted && (isMobile ? <MobileHeader /> : <DesktopHeader />)}
 
       {isMounted && miners.length > 0 ? (

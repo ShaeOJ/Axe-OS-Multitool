@@ -28,6 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from './ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ShareAnimation } from './share-animation';
+import { getMinerData, restartMiner as restartMinerTauri, updateMinerSettings } from '@/lib/tauri-api';
 
 
 // New state for advanced tuning logic
@@ -37,44 +38,35 @@ type TuningState = {
     lastHashrate: number;
     lastActionWasVoltIncrease: boolean;
     lastHashrateBeforeFreqBoost: number;
-    lastAdjustmentTime: number; // Add this line
+    lastAdjustmentTime: number;
     tunerPaused: boolean;
     lastTemp: number;
-    // Add cycle counter for auto-optimization
     cycleCount: number;
+    // Hashrate verification after adjustments
+    verificationCheckScheduled: boolean;
+    verificationCheckTime: number;
+    hashrateBeforeChange: number;
+    previousFrequency: number;
+    previousVoltage: number;
 };
 
 const setMinerSettings = async (ip: string, frequency: number, coreVoltage: number) => {
-  const url = `/api/miner/${ip}/settings`;
   try {
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({ frequency, coreVoltage }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Proxy returned status ${response.status}`);
-    }
-    return await response.json();
+    const data = await updateMinerSettings(ip, frequency, coreVoltage);
+    return data;
   } catch (error: any) {
     console.error('Error setting miner settings:', error);
-    throw new Error(error.message || 'Failed to update miner settings via proxy');
+    throw new Error(error.message || 'Failed to update miner settings');
   }
 };
 
 const restartMiner = async (ip: string) => {
-    const url = `/api/miner/${ip}/restart`;
-    const response = await fetch(url, { method: 'POST' });
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to restart miner. Status: ${response.status}`);
-    }
-    return await response.json();
+  try {
+    const data = await restartMinerTauri(ip);
+    return data;
+  } catch (error: any) {
+    throw new Error(error.message || 'Failed to restart miner');
+  }
 };
 
 
@@ -152,8 +144,6 @@ const StatItem = ({ icon: Icon, label, value, unit, loading }: { icon: React.Ele
   );
 
 export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMiner }: MinerCardProps) {
-  console.log('minerConfig', minerConfig);
-  console.log('state', state);
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
   const [isCardOpen, setIsCardOpen] = useState(true);
@@ -162,19 +152,37 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
   const [isTunerSettingsOpen, setIsTunerSettingsOpen] = useState(false);
   const { tunerSettings } = minerConfig;
   const [animateShare, setAnimateShare] = useState(0);
+  const [shareType, setShareType] = useState<'accepted' | 'rejected'>('accepted');
   const prevAcceptedSharesRef = useRef<number>();
+  const prevRejectedSharesRef = useRef<number>();
 
   useEffect(() => {
     const currentAcceptedShares = state.info?.sharesAccepted;
+    const currentRejectedShares = state.info?.sharesRejected;
+
+    // Check for accepted shares
     if (
       prevAcceptedSharesRef.current !== undefined &&
       currentAcceptedShares !== undefined &&
       currentAcceptedShares > prevAcceptedSharesRef.current
     ) {
+      setShareType('accepted');
       setAnimateShare(s => s + 1);
     }
+
+    // Check for rejected shares
+    if (
+      prevRejectedSharesRef.current !== undefined &&
+      currentRejectedShares !== undefined &&
+      currentRejectedShares > prevRejectedSharesRef.current
+    ) {
+      setShareType('rejected');
+      setAnimateShare(s => s + 1);
+    }
+
     prevAcceptedSharesRef.current = currentAcceptedShares;
-  }, [state.info?.sharesAccepted]);
+    prevRejectedSharesRef.current = currentRejectedShares;
+  }, [state.info?.sharesAccepted, state.info?.sharesRejected]);
 
   const tuningState = useRef<TuningState>({
     voltageStuckCycles: 0,
@@ -186,6 +194,11 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     lastAdjustmentTime: 0,
     tunerPaused: false,
     lastTemp: 0,
+    verificationCheckScheduled: false,
+    verificationCheckTime: 0,
+    hashrateBeforeChange: 0,
+    previousFrequency: 0,
+    previousVoltage: 0,
   });
 
   const analyzeAndDetermineBestSettings = useCallback((history: MinerDataPoint[]) => {
@@ -234,7 +247,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
 
     const optimalSettings = {
         frequency: Math.round(bestPoint.frequency),
-        coreVoltage: bestPoint.voltage, // Voltage is already in V
+        coreVoltage: bestPoint.voltage, // Voltage is already in mV
     };
 
     const reason = `History analysis: Peak HR was ${maxHashrate.toFixed(2)}. Found best efficiency at ${bestPoint.hashrate.toFixed(2)} GH/s (F: ${optimalSettings.frequency}MHz, V: ${optimalSettings.coreVoltage}mV).`;
@@ -242,25 +255,108 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
   }, [tunerSettings]);
 
 
+  const verifyHashrateChange = useCallback(async (info: MinerInfo) => {
+    const HASHRATE_DROP_THRESHOLD = 100; // GH/s
+    const HASHRATE_INCREASE_MIN = 1; // GH/s
+
+    const currentHashrate = info.hashRate || 0;
+    const hashrateDiff = currentHashrate - tuningState.current.hashrateBeforeChange;
+
+    // If hashrate dropped significantly, revert to previous settings
+    if (hashrateDiff < -HASHRATE_DROP_THRESHOLD) {
+      try {
+        await setMinerSettings(
+          minerConfig.ip,
+          tuningState.current.previousFrequency,
+          tuningState.current.previousVoltage
+        );
+        toast({
+          variant: "destructive",
+          title: `Auto-Tuner: Reverted ${minerConfig.name || minerConfig.ip}`,
+          description: `Hashrate dropped ${Math.abs(hashrateDiff).toFixed(1)} GH/s. Reverted to F:${tuningState.current.previousFrequency}MHz, V:${tuningState.current.previousVoltage}mV`,
+        });
+        console.log(`[Verification] Reverted: HR dropped from ${tuningState.current.hashrateBeforeChange.toFixed(1)} to ${currentHashrate.toFixed(1)} GH/s`);
+      } catch (error: any) {
+        toast({
+          variant: 'destructive',
+          title: `Auto-Tuner Revert Error: ${minerConfig.name || minerConfig.ip}`,
+          description: `Failed to revert settings: ${error.message}`,
+        });
+      }
+    } else if (hashrateDiff >= HASHRATE_INCREASE_MIN) {
+      // Hashrate improved, keep the new settings
+      console.log(`[Verification] Success: HR increased from ${tuningState.current.hashrateBeforeChange.toFixed(1)} to ${currentHashrate.toFixed(1)} GH/s (+${hashrateDiff.toFixed(1)} GH/s)`);
+    } else {
+      // Hashrate stable (within -100 to +1 GH/s range)
+      console.log(`[Verification] Stable: HR change ${hashrateDiff >= 0 ? '+' : ''}${hashrateDiff.toFixed(1)} GH/s (within acceptable range)`);
+    }
+
+    // Clear the scheduled check
+    tuningState.current.verificationCheckScheduled = false;
+  }, [minerConfig.ip, minerConfig.name, toast]);
+
   const tuneMiner = useCallback(async (info: MinerInfo, history: MinerDataPoint[]) => {
     if (!tunerSettings.enabled || info.temp == null || info.vrTemp == null || info.frequency == null || info.coreVoltage == null || info.hashRate == null) {
         return;
     }
 
     const now = Date.now();
+
+    // Check if we need to verify a previous adjustment
+    if (tuningState.current.verificationCheckScheduled && now >= tuningState.current.verificationCheckTime) {
+      await verifyHashrateChange(info);
+    }
     if (now - tuningState.current.lastAdjustmentTime < 60000) { // 60 seconds
         return;
     }
 
-    const lastTemp = tuningState.current.lastTemp;
-    tuningState.current.lastTemp = info.temp;
+    // Low voltage safety check - if input voltage drops below 4.9V, reset to safe defaults
+    const LOW_VOLTAGE_THRESHOLD = 4900; // mV
+    const SAFE_FREQUENCY = 525; // MHz
+    const SAFE_CORE_VOLTAGE = 1150; // mV
 
-    if (tuningState.current.tunerPaused) {
-        if (info.temp > lastTemp) {
-            tuningState.current.tunerPaused = false;
-        } else {
-            return;
+    if (info.voltage != null && info.voltage < LOW_VOLTAGE_THRESHOLD) {
+        if (info.frequency !== SAFE_FREQUENCY || info.coreVoltage !== SAFE_CORE_VOLTAGE) {
+            try {
+                // Store current state before emergency reset
+                tuningState.current.previousFrequency = info.frequency;
+                tuningState.current.previousVoltage = info.coreVoltage;
+                tuningState.current.hashrateBeforeChange = info.hashRate;
+
+                await setMinerSettings(minerConfig.ip, SAFE_FREQUENCY, SAFE_CORE_VOLTAGE);
+                tuningState.current.lastAdjustmentTime = Date.now();
+
+                // Schedule verification check
+                tuningState.current.verificationCheckScheduled = true;
+                tuningState.current.verificationCheckTime = Date.now() + (tunerSettings.verificationWaitSeconds * 1000);
+
+                toast({
+                    variant: "destructive",
+                    title: `Low Voltage Protection: ${minerConfig.name || minerConfig.ip}`,
+                    description: `Input voltage ${(info.voltage / 1000).toFixed(1)}V below threshold. Reset to safe settings (F: ${SAFE_FREQUENCY}MHz, V: ${SAFE_CORE_VOLTAGE}mV)`,
+                });
+                // Reset tuning state
+                tuningState.current = {
+                    ...tuningState.current,
+                    voltageStuckCycles: 0,
+                    frequencyBoostActive: false,
+                    lastAdjustmentTime: Date.now(),
+                    verificationCheckScheduled: true,
+                    verificationCheckTime: Date.now() + (tunerSettings.verificationWaitSeconds * 1000),
+                    hashrateBeforeChange: info.hashRate,
+                    previousFrequency: info.frequency,
+                    previousVoltage: info.coreVoltage
+                };
+            } catch (error: any) {
+                toast({
+                    variant: 'destructive',
+                    title: `Low Voltage Protection Error: ${minerConfig.name || minerConfig.ip}`,
+                    description: `Failed to apply safe settings: ${error.message}`,
+                });
+            }
+            return; // Stop further tuning this cycle
         }
+        return; // Already at safe settings, don't tune further
     }
 
     const currentHashrateGHS = info.hashRate;
@@ -274,6 +370,19 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
         flatlineDetectionEnabled, flatlineHashrateRepeatCount,
         autoOptimizeEnabled, autoOptimizeTriggerCycles
     } = tunerSettings;
+
+    const lastTemp = tuningState.current.lastTemp;
+    tuningState.current.lastTemp = info.temp;
+
+    if (tuningState.current.tunerPaused) {
+        // Unpause if temp moves outside the ideal range (either hotter or cooler)
+        const tempDiff = Math.abs(info.temp - targetTemp);
+        if (tempDiff >= 2) {
+            tuningState.current.tunerPaused = false;
+        } else {
+            return; // Still in ideal range, stay paused
+        }
+    }
     
     const VOLTAGE_STUCK_CHECK_CYCLES = 3;
     const HASHRATE_INCREASE_TOLERANCE_GHS = 0.1;
@@ -303,13 +412,32 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
         const { settings: optimalSettings, reason } = analyzeAndDetermineBestSettings(history);
         if (optimalSettings && (optimalSettings.frequency !== info.frequency || optimalSettings.coreVoltage !== info.coreVoltage)) {
             try {
+                // Store current state before optimization
+                tuningState.current.previousFrequency = info.frequency;
+                tuningState.current.previousVoltage = info.coreVoltage;
+                tuningState.current.hashrateBeforeChange = currentHashrateGHS;
+
                 await setMinerSettings(minerConfig.ip, optimalSettings.frequency, optimalSettings.coreVoltage);
+
+                // Schedule verification check
+                tuningState.current.verificationCheckScheduled = true;
+                tuningState.current.verificationCheckTime = Date.now() + (tunerSettings.verificationWaitSeconds * 1000);
+
                 toast({
                     title: `Auto-Optimizer: ${minerConfig.name || minerConfig.ip}`,
-                    description: `(${reason}) Freq: ${optimalSettings.frequency}MHz, Volt: ${optimalSettings.coreVoltage}V`,
+                    description: `(${reason}) Freq: ${optimalSettings.frequency}MHz, Volt: ${optimalSettings.coreVoltage}mV`,
                 });
-                 // Reset state after optimization
-                tuningState.current = { ...tuningState.current, voltageStuckCycles: 0, frequencyBoostActive: false };
+                // Reset state after optimization
+                tuningState.current = {
+                    ...tuningState.current,
+                    voltageStuckCycles: 0,
+                    frequencyBoostActive: false,
+                    verificationCheckScheduled: true,
+                    verificationCheckTime: Date.now() + (tunerSettings.verificationWaitSeconds * 1000),
+                    hashrateBeforeChange: currentHashrateGHS,
+                    previousFrequency: info.frequency,
+                    previousVoltage: info.coreVoltage
+                };
                 return; // Stop further tuning this cycle
             } catch(error: any) {
                 toast({ variant: 'destructive', title: `Optimizer Error: ${minerConfig.name || minerConfig.ip}`, description: error.message });
@@ -378,16 +506,20 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
 
     if (info.vrTemp > vrTargetTemp) { // VRM HOT
         reason = `VRM Hot (${info.vrTemp.toFixed(1)}°C > ${vrTargetTemp.toFixed(1)}°C)`;
+        // Reduce both frequency and voltage for faster cooling
         if (new_freq - vrTempFreqStepDown >= minFreq) {
             proposedChanges.frequency = new_freq - vrTempFreqStepDown;
-        } else if (new_volt - vrTempVoltStepDown >= minVolt) {
+        }
+        if (new_volt - vrTempVoltStepDown >= minVolt) {
             proposedChanges.voltage = new_volt - vrTempVoltStepDown;
         }
     } else if (info.temp > targetTemp) { // CORE HOT
         reason = `Core Hot (${info.temp.toFixed(1)}°C > ${targetTemp.toFixed(1)}°C)`;
+        // Reduce both frequency and voltage for faster cooling
         if (new_freq - tempFreqStepDown >= minFreq) {
             proposedChanges.frequency = new_freq - tempFreqStepDown;
-        } else if (new_volt - tempVoltStepDown >= minVolt) {
+        }
+        if (new_volt - tempVoltStepDown >= minVolt) {
             proposedChanges.voltage = new_volt - tempVoltStepDown;
         }
     } else if (info.temp < targetTemp - 2) { // CORE COOL
@@ -418,8 +550,18 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
 
     if (final_freq !== info.frequency || final_volt !== info.coreVoltage) {
         try {
+            // Store current state before making changes
+            tuningState.current.previousFrequency = info.frequency;
+            tuningState.current.previousVoltage = info.coreVoltage;
+            tuningState.current.hashrateBeforeChange = currentHashrateGHS;
+
             await setMinerSettings(minerConfig.ip, final_freq, final_volt);
             tuningState.current.lastAdjustmentTime = Date.now();
+
+            // Schedule hashrate verification check
+            tuningState.current.verificationCheckScheduled = true;
+            tuningState.current.verificationCheckTime = Date.now() + (tunerSettings.verificationWaitSeconds * 1000);
+
             toast({
                 title: `Auto-Tuner: ${minerConfig.name || minerConfig.ip}`,
                 description: `(${reason}) Freq: ${final_freq.toFixed(0)}MHz, Volt: ${final_volt.toFixed(0)}mV`,
@@ -432,7 +574,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
             });
         }
     }
-  }, [tunerSettings, minerConfig.ip, minerConfig.name, toast, analyzeAndDetermineBestSettings]);
+  }, [tunerSettings, minerConfig.ip, minerConfig.name, toast, analyzeAndDetermineBestSettings, verifyHashrateChange]);
   
   useEffect(() => {
     setIsMounted(true);
@@ -447,6 +589,11 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
         lastAdjustmentTime: 0,
         tunerPaused: false,
         lastTemp: 0,
+        verificationCheckScheduled: false,
+        verificationCheckTime: 0,
+        hashrateBeforeChange: 0,
+        previousFrequency: 0,
+        previousVoltage: 0,
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minerConfig.ip]);
@@ -512,8 +659,8 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                           </CardTitle>
                           <CardDescription>{cardDescription}</CardDescription>
                       </div>
-                      <div className="share-animation-wrapper" style={{ marginLeft: '4rem' }}>
-                        {!isDetailsOpen && isCardOpen && <ShareAnimation trigger={animateShare} />}
+                      <div className="share-animation-wrapper flex items-center min-h-[32px] min-w-[120px]" style={{ marginLeft: '4rem' }}>
+                        {!isDetailsOpen && isCardOpen && <ShareAnimation trigger={animateShare} type={shareType} />}
                       </div>
                       {!isCardOpen && !isLoading && state.info && (
                           <div className="flex flex-col items-center">
@@ -589,7 +736,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                                           <Input
                                           id={`${key}-${minerConfig.ip}`}
                                           type="number"
-                                          value={value ?? ''}
+                                          value={typeof value === 'number' && !isNaN(value) ? value : ''}
                                           onChange={(e) => handleTunerSettingChange(key as keyof AutoTunerSettings, e.target.value)}
                                           className="h-8 text-sm"
                                           />
@@ -631,6 +778,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                 <div className="px-6 pt-4 pb-4 flex flex-col items-center gap-y-4">
                     <div className="grid grid-cols-2 gap-x-4 gap-y-4 w-full">
                         <StatItem icon={HeartPulse} label="Power" value={state.info?.power?.toFixed(2)} unit="W" loading={isLoading} />
+                        <StatItem icon={Zap} label="Input Voltage" value={state.info?.voltage ? (state.info.voltage / 1000).toFixed(1) : undefined} unit="V" loading={isLoading} />
                         <StatItem icon={Zap} label="Core Voltage" value={state.info?.coreVoltage} unit="mV" loading={isLoading} />
                         <StatItem icon={Thermometer} label="Core Temp" value={state.info?.temp?.toFixed(1)} unit="°C" loading={isLoading} />
                         <StatItem icon={Thermometer} label="VRM Temp" value={state.info?.vrTemp?.toFixed(1)} unit="°C" loading={isLoading} />
@@ -644,7 +792,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                         View Details
                         <ChevronDown className="h-4 w-4 ml-2 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
                         </Button>
-                    {state.history.length > 1 && (
+                    {state.history && state.history.length > 1 && (
                         <Button variant="ghost" size="icon" className="h-8 w-8 mr-2" onClick={() => setIsChartDialogOpen(true)}>
                             <Expand className="h-4 w-4" />
                         </Button>
@@ -658,23 +806,23 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                             <div className="flex items-center gap-2"><Cpu className="h-4 w-4 text-muted-foreground" /><p>ASIC: {state.info?.ASICModel ?? 'N/A'}</p></div>
                             <div className="flex items-center gap-2"><GitBranch className="h-4 w-4 text-muted-foreground" /><p>AxeOS: {state.info?.axeOSVersion ?? 'N/A'}</p></div>
                         </div>
-                        <div className="relative">
+                        <div>
                             <h4 className="font-semibold mb-2">Mining Stats</h4>
                             <div className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /><p>Accepted: {state.info?.sharesAccepted ?? 'N/A'}</p></div>
                             <div className="flex items-center gap-2"><X className="h-4 w-4 text-red-500" /><p>Rejected: {state.info?.sharesRejected ?? 'N/A'}</p></div>
-                            <div className="relative h-8 share-animation-wrapper">
-                                {isDetailsOpen && <ShareAnimation trigger={animateShare} />}
-                            </div>
                         </div>
                         <div>
                             <h4 className="font-semibold mb-2">Pool Info</h4>
                             <div className="flex items-center gap-2"><Server className="h-4 w-4 text-muted-foreground" /><p>Difficulty: {state.info?.poolDifficulty ?? 'N/A'}</p></div>
                             <div className="flex items-center gap-2"><Hash className="h-4 w-4 text-muted-foreground" /><p>Best Diff: {state.info?.bestDiff ?? 'N/A'}</p></div>
-                            <div className="flex items-center gap-2"><Hash className="h-4 w-4 text-muted-foreground" /><p>Session Best: {state.info?.bestSessionDiff ?? 'N/a'}</p></div>
+                            <div className="flex items-center gap-2"><Hash className="h-4 w-4 text-muted-foreground" /><p>Session Best: {state.info?.bestSessionDiff ?? 'N/A'}</p></div>
+                        </div>
+                        <div className="relative flex items-center justify-center min-h-[80px] share-animation-wrapper">
+                            {isDetailsOpen && <ShareAnimation trigger={animateShare} type={shareType} />}
                         </div>
                         </div>
 
-                        {state.history.length > 1 ? (
+                        {state.history && state.history.length > 1 ? (
                             <div className="p-4 bg-background/50 rounded-lg">
                                 <MinerChart history={state.history} />
                             </div>
@@ -698,7 +846,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
               </DialogHeader>
               <p id="chart-dialog-description" className="sr-only">This chart displays the miner's hashrate and temperature over time.</p>
               <div className="h-full w-full">
-                <MinerChart history={state.history} />
+                <MinerChart history={state.history || []} />
               </div>
           </DialogContent>
       </Dialog>

@@ -13,14 +13,16 @@ const randomHash = () => {
   return hash;
 };
 
-export const ShareAnimation = ({ trigger }: { trigger: number }) => {
+export const ShareAnimation = ({ trigger, type = 'accepted' }: { trigger: number; type?: 'accepted' | 'rejected' }) => {
   const [displayState, setDisplayState] = useState<'idle' | 'hashing' | 'revealed'>('idle');
   const [hashText, setHashText] = useState('');
+  const [currentType, setCurrentType] = useState<'accepted' | 'rejected'>(type);
   const intervalRef = useRef<NodeJS.Timeout>();
   const initialTrigger = useRef(trigger);
 
   useEffect(() => {
     if (trigger > initialTrigger.current) {
+      setCurrentType(type);
       setDisplayState('hashing');
       intervalRef.current = setInterval(() => {
         setHashText(randomHash());
@@ -41,20 +43,21 @@ export const ShareAnimation = ({ trigger }: { trigger: number }) => {
         clearTimeout(idleTimeout);
       };
     }
-  }, [trigger]);
+  }, [trigger, type]);
 
   if (displayState === 'idle') {
     return null;
   }
 
+  const isRejected = currentType === 'rejected';
+  const textColor = isRejected ? 'text-red-500' : 'text-green-500';
+  const shadowColor = isRejected ? '0 0 8px rgba(239, 68, 68, 0.8)' : '0 0 8px rgba(52, 211, 153, 0.8)';
+
   return (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="relative">
-            {displayState === 'hashing' && (
-                <p className="font-mono text-sm text-green-500 animate-pulse" style={{ textShadow: '0 0 8px rgba(52, 211, 153, 0.8)' }}>{hashText}</p>
-            )}
-            
-        </div>
+    <div className="flex items-center justify-center pointer-events-none">
+        {displayState === 'hashing' && (
+            <p className={`font-mono text-sm ${textColor} animate-pulse`} style={{ textShadow: shadowColor }}>{hashText}</p>
+        )}
     </div>
   );
 };

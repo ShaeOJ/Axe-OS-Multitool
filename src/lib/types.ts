@@ -109,4 +109,5 @@ export type AutoTunerSettings = {
   autoOptimizeEnabled: boolean;
   autoOptimizeTriggerCycles: number;
   efficiencyTolerancePercent: number;
+  verificationWaitSeconds: number; // Time to wait before verifying hashrate changes
 };

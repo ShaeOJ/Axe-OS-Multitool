@@ -1,1 +1,77 @@
-[]
+[
+  {
+    "ip": "10.0.0.212",
+    "name": "Bitaxe G",
+    "accentColor": "hsl(var(--chart-2))",
+    "tunerSettings": {
+      "enabled": true,
+      "targetTemp": 60,
+      "vrTargetTemp": 70,
+      "minFreq": 400,
+      "maxFreq": 825,
+      "minVolt": 1000,
+      "maxVolt": 1225,
+      "tempFreqStepDown": 5,
+      "tempVoltStepDown": 5,
+      "tempFreqStepUp": 10,
+      "tempVoltStepUp": 10,
+      "vrTempFreqStepDown": 5,
+      "vrTempVoltStepDown": 5,
+      "flatlineDetectionEnabled": true,
+      "flatlineHashrateRepeatCount": 30,
+      "autoOptimizeEnabled": true,
+      "autoOptimizeTriggerCycles": 60,
+      "efficiencyTolerancePercent": 2
+    }
+  },
+  {
+    "ip": "10.0.0.206",
+    "name": "Gamma W",
+    "accentColor": "hsl(var(--chart-3))",
+    "tunerSettings": {
+      "enabled": true,
+      "targetTemp": 60,
+      "vrTargetTemp": 70,
+      "minFreq": 400,
+      "maxFreq": 850,
+      "minVolt": 1000,
+      "maxVolt": 1250,
+      "tempFreqStepDown": 5,
+      "tempVoltStepDown": 5,
+      "tempFreqStepUp": 10,
+      "tempVoltStepUp": 10,
+      "vrTempFreqStepDown": 5,
+      "vrTempVoltStepDown": 5,
+      "flatlineDetectionEnabled": true,
+      "flatlineHashrateRepeatCount": 30,
+      "autoOptimizeEnabled": true,
+      "autoOptimizeTriggerCycles": 60,
+      "efficiencyTolerancePercent": 2
+    }
+  },
+  {
+    "ip": "10.0.0.112",
+    "name": "Gamma W2",
+    "accentColor": "hsl(var(--chart-5))",
+    "tunerSettings": {
+      "enabled": true,
+      "targetTemp": 60,
+      "vrTargetTemp": 70,
+      "minFreq": 400,
+      "maxFreq": 850,
+      "minVolt": 1000,
+      "maxVolt": 1250,
+      "tempFreqStepDown": 5,
+      "tempVoltStepDown": 5,
+      "tempFreqStepUp": 10,
+      "tempVoltStepUp": 10,
+      "vrTempFreqStepDown": 5,
+      "vrTempVoltStepDown": 5,
+      "flatlineDetectionEnabled": true,
+      "flatlineHashrateRepeatCount": 30,
+      "autoOptimizeEnabled": true,
+      "autoOptimizeTriggerCycles": 60,
+      "efficiencyTolerancePercent": 2
+    }
+  }
+]

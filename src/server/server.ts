@@ -11,23 +11,27 @@ export const startWebSocketServer = (server: any) => {
     ws.send(JSON.stringify({ type: 'INITIAL_STATE', payload: { miners: getMiners() } }));
 
     ws.on('message', (message: string) => {
-      const { type, payload } = JSON.parse(message);
+      try {
+        const { type, payload } = JSON.parse(message);
 
-      switch (type) {
-        case 'ADD_MINER':
-          addMiner(payload);
-          broadcastState();
-          break;
-        case 'REMOVE_MINER':
-          removeMiner(payload);
-          broadcastState();
-          break;
-        case 'UPDATE_MINER':
-          updateMiner(payload);
-          broadcastState();
-          break;
-        default:
-          break;
+        switch (type) {
+          case 'ADD_MINER':
+            addMiner(payload);
+            broadcastState();
+            break;
+          case 'REMOVE_MINER':
+            removeMiner(payload);
+            broadcastState();
+            break;
+          case 'UPDATE_MINER':
+            updateMiner(payload);
+            broadcastState();
+            break;
+          default:
+            break;
+        }
+      } catch (error) {
+        console.error('Failed to parse WebSocket message:', error);
       }
     });
 

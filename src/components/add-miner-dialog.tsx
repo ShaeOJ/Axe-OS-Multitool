@@ -40,7 +40,7 @@ const formSchema = z.object({
 });
 
 type AddMinerDialogProps = {
-  onAddMiner: (minerConfig: MinerConfig) => void;
+  onAddMiner: (minerConfig: Omit<MinerConfig, 'tunerSettings'>) => void;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
 };

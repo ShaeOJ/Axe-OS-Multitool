@@ -16,38 +16,20 @@ To monitor miners on your private home network, the application must run on a co
 
 ## Getting Started
 
-### Prerequisites
+### Download the App (Easiest)
 
-Before you begin, make sure you have the following installed:
-- **Node.js**: Download from [nodejs.org](https://nodejs.org/). Version 18 or higher is required.
-- **Rust**: Required for building the Tauri app. Install from [rustup.rs](https://rustup.rs/)
-- **npm**: Comes automatically with Node.js
+**For Windows Users:**
 
-### Installation & Setup
+Download and run one of the installers from the [Releases](../../releases) page:
+- **MSI Installer** (Recommended): `AxeOS Live!_1.0.0_x64_en-US.msi`
+- **EXE Installer**: `AxeOS Live!_1.0.0_x64-setup.exe`
 
-1.  **Download or Clone the Code**:
-    ```bash
-    git clone <repository-url>
-    cd Axe-OS-Multitool
-    ```
+Double-click the installer and follow the prompts. The app will be installed and ready to use!
 
-2.  **Install Dependencies**:
-    Run this command once to install all required packages:
-    ```bash
-    npm install
-    ```
+### Using the App
 
-3.  **Run the Desktop App**:
-    Start the application in development mode:
-    ```bash
-    npm run tauri:dev
-    ```
-    This will:
-    - Start the Next.js server on port 9002
-    - Launch the Tauri desktop window
-    - Enable hot-reload for rapid development
-
-4.  **Add Your Miners**:
+1.  **Launch AxeOS Live!** from your Start Menu or Desktop
+2.  **Add Your Miners**:
     - Click the "Add Miner" button
     - Enter your miner's local IP address (e.g., `192.168.1.100`)
     - Give it a custom name and choose an accent color
@@ -55,16 +37,47 @@ Before you begin, make sure you have the following installed:
 
     Your miners will be automatically saved and loaded on next startup!
 
-### Building for Production
+### Building from Source (Developers)
 
-To create a standalone installer for your platform:
+If you want to build the app yourself or contribute to development:
+
+#### Prerequisites
+
+- **Node.js**: Download from [nodejs.org](https://nodejs.org/). Version 18 or higher is required.
+- **Rust**: Required for building the Tauri app. Install from [rustup.rs](https://rustup.rs/)
+- **npm**: Comes automatically with Node.js
+
+#### Setup
+
+1.  **Clone the Repository**:
+    ```bash
+    git clone https://github.com/yourusername/Axe-OS-Multitool.git
+    cd Axe-OS-Multitool
+    ```
+
+2.  **Install Dependencies**:
+    ```bash
+    npm install
+    ```
+
+3.  **Run in Development Mode**:
+    ```bash
+    npm run tauri:dev
+    ```
+    This will launch the desktop app with hot-reload enabled.
+
+#### Building Installers
+
+To create your own installers:
 
 ```bash
 npm run tauri:build
 ```
 
-This creates an installer in `src-tauri/target/release/bundle/`:
-- **Windows**: `.exe` installer in `nsis/` folder
+This creates installers in `src-tauri/target/release/bundle/`:
+- **Windows**:
+  - `msi/AxeOS Live!_1.0.0_x64_en-US.msi` (MSI Installer)
+  - `nsis/AxeOS Live!_1.0.0_x64-setup.exe` (EXE Installer)
 - **macOS**: `.dmg` file in `dmg/` folder
 - **Linux**: `.AppImage` or `.deb` in respective folders
 
@@ -175,9 +188,9 @@ All tuner parameters can be customized per miner:
 
 ### Data Not Persisting
 
-- Miner configurations are stored in browser localStorage
-- Clearing browser data will delete your saved miners
-- Each browser/profile has separate storage (Chrome vs Firefox, etc.)
+- In the installed desktop app, miner configurations are stored locally using Tauri's store plugin
+- Data persists between app updates and restarts
+- In dev mode, data is stored in browser localStorage
 
 ### Auto-Tuner Issues
 
@@ -193,20 +206,24 @@ All tuner parameters can be customized per miner:
 
 ## Advanced Configuration
 
-### Custom Network Settings
+### Customizing the App Icon
 
-The app runs on port 9002 by default. To change this, edit `package.json`:
+To use your own icon:
+
+1. Create a square PNG image (512x512 or 1024x1024 recommended)
+2. Save it in the project root
+3. Run: `npm run tauri icon your-icon.png`
+4. Rebuild: `npm run tauri:build`
+
+This will generate all required icon sizes for Windows, macOS, and Linux.
+
+### Custom Network Settings (Development)
+
+The app runs on port 9002 by default during development. To change this, edit `package.json`:
 
 ```json
-"dev": "next dev --turbopack -p YOUR_PORT -H 0.0.0.0"
+"dev": "next dev -p YOUR_PORT -H 0.0.0.0"
 ```
-
-### Auto-Updater Setup
-
-For production builds with auto-update capability, see `TAURI_SETUP.md` for:
-- Generating signing keys
-- Configuring update endpoints
-- Setting up GitHub releases
 
 ## Contributing
 

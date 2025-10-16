@@ -71,13 +71,14 @@ export function MinerDashboard() {
           };
         });
 
-    } catch (error: any) {
+    } catch (error) {
+        const message = error instanceof Error ? error.message : `Failed to fetch data from miner ${ip}.`;
         setMinerStates(prev => ({
           ...prev,
           [ip]: {
             ...prev[ip],
             loading: false,
-            error: error.message || `Failed to fetch data from miner ${ip}.`,
+            error: message,
           },
         }));
     }

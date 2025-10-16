@@ -7,7 +7,7 @@
     "frontendDist": "../out",
     "devUrl": "http://localhost:9002",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "beforeBuildCommand": "npm run build:tauri"
   },
   "app": {
     "windows": [
@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src 'self' http://192.168.* http://10.* http://172.*; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;"
     }
   },
   "bundle": {
@@ -42,14 +42,5 @@
     "shortDescription": "Monitor and manage your AxeOS miners",
     "longDescription": "AxeOS Live! is a desktop application for monitoring and managing your AxeOS-based Bitcoin miners with real-time stats and auto-tuning capabilities."
   },
-  "plugins": {
-    "updater": {
-      "active": true,
-      "endpoints": [
-        "https://github.com/YOUR_USERNAME/YOUR_REPO/releases/latest/download/latest.json"
-      ],
-      "dialog": true,
-      "pubkey": "YOUR_PUBLIC_KEY_HERE"
-    }
-  }
+  "plugins": {}
 }

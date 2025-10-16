@@ -26,6 +26,7 @@ import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from './ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ShareAnimation } from './share-animation';
 import { getMinerData, restartMiner as restartMinerTauri, updateMinerSettings } from '@/lib/tauri-api';
@@ -54,9 +55,10 @@ const setMinerSettings = async (ip: string, frequency: number, coreVoltage: numb
   try {
     const data = await updateMinerSettings(ip, frequency, coreVoltage);
     return data;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error setting miner settings:', error);
-    throw new Error(error.message || 'Failed to update miner settings');
+    const message = error instanceof Error ? error.message : 'Failed to update miner settings';
+    throw new Error(message);
   }
 };
 
@@ -64,8 +66,9 @@ const restartMiner = async (ip: string) => {
   try {
     const data = await restartMinerTauri(ip);
     return data;
-  } catch (error: any) {
-    throw new Error(error.message || 'Failed to restart miner');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to restart miner';
+    throw new Error(message);
   }
 };
 
@@ -150,6 +153,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isChartDialogOpen, setIsChartDialogOpen] = useState(false);
   const [isTunerSettingsOpen, setIsTunerSettingsOpen] = useState(false);
+  const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
   const { tunerSettings } = minerConfig;
   const [animateShare, setAnimateShare] = useState(0);
   const [shareType, setShareType] = useState<'accepted' | 'rejected'>('accepted');
@@ -276,11 +280,12 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
           description: `Hashrate dropped ${Math.abs(hashrateDiff).toFixed(1)} GH/s. Reverted to F:${tuningState.current.previousFrequency}MHz, V:${tuningState.current.previousVoltage}mV`,
         });
         console.log(`[Verification] Reverted: HR dropped from ${tuningState.current.hashrateBeforeChange.toFixed(1)} to ${currentHashrate.toFixed(1)} GH/s`);
-      } catch (error: any) {
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
         toast({
           variant: 'destructive',
           title: `Auto-Tuner Revert Error: ${minerConfig.name || minerConfig.ip}`,
-          description: `Failed to revert settings: ${error.message}`,
+          description: `Failed to revert settings: ${message}`,
         });
       }
     } else if (hashrateDiff >= HASHRATE_INCREASE_MIN) {
@@ -347,11 +352,12 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                     previousFrequency: info.frequency,
                     previousVoltage: info.coreVoltage
                 };
-            } catch (error: any) {
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
                 toast({
                     variant: 'destructive',
                     title: `Low Voltage Protection Error: ${minerConfig.name || minerConfig.ip}`,
-                    description: `Failed to apply safe settings: ${error.message}`,
+                    description: `Failed to apply safe settings: ${message}`,
                 });
             }
             return; // Stop further tuning this cycle
@@ -400,8 +406,9 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                 });
                 await restartMiner(minerConfig.ip);
                 tuningState.current = { ...tuningState.current, cycleCount: 0, voltageStuckCycles: 0, frequencyBoostActive: false };
-            } catch (error: any) {
-                toast({ variant: 'destructive', title: `Restart Failed: ${minerConfig.name || minerConfig.ip}`, description: error.message });
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Failed to restart miner';
+                toast({ variant: 'destructive', title: `Restart Failed: ${minerConfig.name || minerConfig.ip}`, description: message });
             }
             return; // Stop further tuning this cycle
         }
@@ -439,8 +446,9 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                     previousVoltage: info.coreVoltage
                 };
                 return; // Stop further tuning this cycle
-            } catch(error: any) {
-                toast({ variant: 'destructive', title: `Optimizer Error: ${minerConfig.name || minerConfig.ip}`, description: error.message });
+            } catch(error) {
+                const message = error instanceof Error ? error.message : 'Optimization failed';
+                toast({ variant: 'destructive', title: `Optimizer Error: ${minerConfig.name || minerConfig.ip}`, description: message });
             }
         } else if (reason) {
             console.log(`[Auto-Optimizer: ${minerConfig.name || minerConfig.ip}] ${reason}`);
@@ -566,11 +574,12 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                 title: `Auto-Tuner: ${minerConfig.name || minerConfig.ip}`,
                 description: `(${reason}) Freq: ${final_freq.toFixed(0)}MHz, Volt: ${final_volt.toFixed(0)}mV`,
             });
-        } catch (error: any) {
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to apply settings';
             toast({
                 variant: 'destructive',
                 title: `Auto-Tuner Error: ${minerConfig.name || minerConfig.ip}`,
-                description: `Failed to apply new settings: ${error.message}`,
+                description: `Failed to apply new settings: ${message}`,
             });
         }
     }
@@ -673,11 +682,32 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                       )}
                   </div>
                   <div className="flex items-center gap-2 relative">
-                        
-                      <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => onRemove(minerConfig.ip)}>
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Remove miner</span>
-                      </Button>
+                      <AlertDialog open={isRemoveDialogOpen} onOpenChange={setIsRemoveDialogOpen}>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Remove miner</span>
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove Miner?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to remove <strong>{minerConfig.name || minerConfig.ip}</strong>?
+                              This will delete all saved settings including auto-tuner configuration. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => {
+                              onRemove(minerConfig.ip);
+                              setIsRemoveDialogOpen(false);
+                            }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              Remove
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                   </div>
               </div>
               <div className="pt-2 flex items-center justify-between">

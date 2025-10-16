@@ -1,6 +1,8 @@
 
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 const FETCH_TIMEOUT = 5000; // 5 seconds
 const API_PATHS = ['/api/system/info', '/system/info', '/'];
 

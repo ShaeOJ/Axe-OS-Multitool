@@ -103,7 +103,7 @@ async fn update_miner_settings(ip: String, frequency: u32, core_voltage: u32) ->
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .plugin(tauri_plugin_updater::Builder::new().build())
+    .plugin(tauri_plugin_store::Builder::new().build())
     .invoke_handler(tauri::generate_handler![
       get_miner_data,
       restart_miner,

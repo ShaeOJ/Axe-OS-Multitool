@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
+use simple_mdns::async_discovery::ServiceDiscovery;
+use simple_mdns::InstanceInformation;
 use std::time::Duration;
+use tauri::Manager;
 
+struct MdnsService(ServiceDiscovery);
 #[derive(Debug, Serialize, Deserialize)]
 struct MinerSettingsUpdate {
     frequency: u32,
@@ -110,14 +114,30 @@ pub fn run() {
       update_miner_settings
     ])
     .setup(|app| {
-      if cfg!(debug_assertions) {
-        app.handle().plugin(
-          tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
-            .build(),
-        )?;
-      }
-      Ok(())
+        if cfg!(debug_assertions) {
+            app.handle().plugin(
+                tauri_plugin_log::Builder::default()
+                    .level(log::LevelFilter::Info)
+                    .build(),
+            )?;
+        }
+
+        let app_handle = app.handle().clone();
+        app.handle().runtime().spawn(async move {
+            let instance_info =
+                InstanceInformation::new("live".into()).with_port(9002);
+
+            let service_discovery = ServiceDiscovery::new(
+                instance_info,
+                "_http._tcp.local",
+                60,
+            )
+            .expect("Failed to create service discovery");
+
+            app_handle.manage(MdnsService(service_discovery));
+        });
+
+        Ok(())
     })
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

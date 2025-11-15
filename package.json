@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 9002 -H 0.0.0.0",
     "build": "next build",
-    "build:tauri": "robocopy src\\app\\api ..\\api-temp /E /MOVE >nul 2>&1 & next build & robocopy ..\\api-temp src\\app\\api /E /MOVE >nul 2>&1 || cd .",
+    "build:tauri": "node scripts/build-tauri.js",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",

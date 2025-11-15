@@ -1,8 +1,6 @@
 
 import { NextResponse } from 'next/server';
 
-export const dynamic = 'force-dynamic';
-
 const FETCH_TIMEOUT = 10000; // 10 seconds
 
 export async function PATCH(

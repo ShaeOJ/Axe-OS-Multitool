@@ -6,6 +6,15 @@ export type MinerConfig = {
   tunerSettings: AutoTunerSettings;
 };
 
+// ASIC domain breakdown for advanced monitoring
+export type HashrateMonitor = {
+  asics: Array<{
+    total: number;
+    domains: number[];
+    errorCount: number;
+  }>;
+};
+
 // Updated structure for miner API response based on user-provided JSON
 export type MinerInfo = {
   power?: number;
@@ -17,6 +26,7 @@ export type MinerInfo = {
   nominalVoltage?: number;
   hashRate?: number; // MHS
   expectedHashrate?: number;
+  errorPercentage?: number;
   bestDiff?: string;
   bestSessionDiff?: string;
   poolDifficulty?: number;
@@ -65,6 +75,8 @@ export type MinerInfo = {
   temptarget?: number;
   fanrpm?: number;
   statsFrequency?: number;
+  blockFound?: number;
+  hashrateMonitor?: HashrateMonitor;
   ip_address?: string; // Manually added for UI
 };
 

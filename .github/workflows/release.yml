@@ -55,7 +55,8 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'AxeOS Live! ${{ github.ref_name }}'
-          releaseBody: 'See the assets to download this version and install.'
+          releaseBody: 'Building for cross platforms - V1.0'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+          includeUpdaterJson: false

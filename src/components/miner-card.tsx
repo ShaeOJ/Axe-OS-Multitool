@@ -16,7 +16,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useToast } from '@/hooks/use-toast';
 import type { MinerState, MinerInfo, MinerDataPoint, AutoTunerSettings, MinerConfig } from '@/lib/types';
 import { MinerChart } from './miner-chart';
-import { Zap, Thermometer, Gauge, HeartPulse, Trash2, ChevronDown, AlertCircle, CheckCircle2, Cpu, Hash, Check, X, Server, GitBranch, Settings, Power, Expand } from 'lucide-react';
+import { Zap, Thermometer, Gauge, HeartPulse, Trash2, ChevronDown, AlertCircle, CheckCircle2, Cpu, Hash, Check, X, Server, GitBranch, Settings, Power, Expand, AlertTriangle, Trophy } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { cn } from '@/lib/utils';
@@ -49,6 +49,7 @@ type TuningState = {
     hashrateBeforeChange: number;
     previousFrequency: number;
     previousVoltage: number;
+    previousErrorCount: number;
 };
 
 const setMinerSettings = async (ip: string, frequency: number, coreVoltage: number) => {
@@ -157,8 +158,10 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
   const { tunerSettings } = minerConfig;
   const [animateShare, setAnimateShare] = useState(0);
   const [shareType, setShareType] = useState<'accepted' | 'rejected'>('accepted');
+  const [blockFoundCelebration, setBlockFoundCelebration] = useState(false);
   const prevAcceptedSharesRef = useRef<number>();
   const prevRejectedSharesRef = useRef<number>();
+  const prevBlockFoundRef = useRef<number>();
 
   useEffect(() => {
     const currentAcceptedShares = state.info?.sharesAccepted;
@@ -184,9 +187,28 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
       setAnimateShare(s => s + 1);
     }
 
+    // Check for block found
+    const currentBlockFound = state.info?.blockFound;
+    if (
+      prevBlockFoundRef.current !== undefined &&
+      currentBlockFound !== undefined &&
+      currentBlockFound > prevBlockFoundRef.current &&
+      currentBlockFound === 1
+    ) {
+      setBlockFoundCelebration(true);
+      toast({
+        title: `🏆 BLOCK FOUND! 🏆`,
+        description: `${minerConfig.name || minerConfig.ip} found a block! Congratulations!`,
+        duration: 10000,
+      });
+      // Auto-hide celebration after 15 seconds
+      setTimeout(() => setBlockFoundCelebration(false), 15000);
+    }
+
     prevAcceptedSharesRef.current = currentAcceptedShares;
     prevRejectedSharesRef.current = currentRejectedShares;
-  }, [state.info?.sharesAccepted, state.info?.sharesRejected]);
+    prevBlockFoundRef.current = currentBlockFound;
+  }, [state.info?.sharesAccepted, state.info?.sharesRejected, state.info?.blockFound, minerConfig.name, minerConfig.ip, toast]);
 
   const tuningState = useRef<TuningState>({
     voltageStuckCycles: 0,
@@ -203,10 +225,11 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     hashrateBeforeChange: 0,
     previousFrequency: 0,
     previousVoltage: 0,
+    previousErrorCount: 0,
   });
 
   const analyzeAndDetermineBestSettings = useCallback((history: MinerDataPoint[]) => {
-    const { 
+    const {
         targetTemp,
         autoOptimizeTriggerCycles,
         efficiencyTolerancePercent,
@@ -216,9 +239,14 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
         return { settings: null, reason: `Not enough data (${history.length}/${autoOptimizeTriggerCycles})` };
     }
 
+    // Only analyze recent history (last 30 minutes at 15s intervals = 120 data points)
+    // This ensures we're using relevant data that reflects current conditions
+    const RECENT_HISTORY_LIMIT = 120;
+    const recentHistory = history.slice(-RECENT_HISTORY_LIMIT);
+
     const tempTolerance = 2.0; // Use a small tolerance for finding points in the ideal temp range
-    const validPoints = history.filter(p => 
-        p.temperature && 
+    const validPoints = recentHistory.filter(p =>
+        p.temperature &&
         p.hashrate &&
         p.voltage &&
         Math.abs(p.temperature - targetTemp) <= tempTolerance
@@ -260,24 +288,26 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
 
 
   const verifyHashrateChange = useCallback(async (info: MinerInfo) => {
-    const HASHRATE_DROP_THRESHOLD = 100; // GH/s
+    const HASHRATE_DROP_THRESHOLD_PERCENT = 15; // 15% drop triggers revert
     const HASHRATE_INCREASE_MIN = 1; // GH/s
 
     const currentHashrate = info.hashRate || 0;
     const hashrateDiff = currentHashrate - tuningState.current.hashrateBeforeChange;
+    const dropThreshold = tuningState.current.hashrateBeforeChange * (HASHRATE_DROP_THRESHOLD_PERCENT / 100);
 
-    // If hashrate dropped significantly, revert to previous settings
-    if (hashrateDiff < -HASHRATE_DROP_THRESHOLD) {
+    // If hashrate dropped significantly (percentage-based), revert to previous settings
+    if (hashrateDiff < -dropThreshold) {
       try {
         await setMinerSettings(
           minerConfig.ip,
           tuningState.current.previousFrequency,
           tuningState.current.previousVoltage
         );
+        const dropPercent = (Math.abs(hashrateDiff) / tuningState.current.hashrateBeforeChange * 100).toFixed(1);
         toast({
           variant: "destructive",
           title: `Auto-Tuner: Reverted ${minerConfig.name || minerConfig.ip}`,
-          description: `Hashrate dropped ${Math.abs(hashrateDiff).toFixed(1)} GH/s. Reverted to F:${tuningState.current.previousFrequency}MHz, V:${tuningState.current.previousVoltage}mV`,
+          description: `Hashrate dropped ${Math.abs(hashrateDiff).toFixed(1)} GH/s (${dropPercent}%). Reverted to F:${tuningState.current.previousFrequency}MHz, V:${tuningState.current.previousVoltage}mV`,
         });
         console.log(`[Verification] Reverted: HR dropped from ${tuningState.current.hashrateBeforeChange.toFixed(1)} to ${currentHashrate.toFixed(1)} GH/s`);
       } catch (error) {
@@ -311,7 +341,13 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     if (tuningState.current.verificationCheckScheduled && now >= tuningState.current.verificationCheckTime) {
       await verifyHashrateChange(info);
     }
-    if (now - tuningState.current.lastAdjustmentTime < 60000) { // 60 seconds
+
+    // Emergency temperature thresholds - allow bypassing cooldown for critical temps
+    const EMERGENCY_TEMP_THRESHOLD = 75; // °C
+    const EMERGENCY_VR_TEMP_THRESHOLD = 85; // °C
+    const isEmergency = info.temp > EMERGENCY_TEMP_THRESHOLD || info.vrTemp > EMERGENCY_VR_TEMP_THRESHOLD;
+
+    if (!isEmergency && now - tuningState.current.lastAdjustmentTime < 60000) { // 60 seconds
         return;
     }
 
@@ -364,6 +400,48 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
         }
         return; // Already at safe settings, don't tune further
     }
+
+    // Error spike detection - revert if ASIC errors increased significantly
+    const ERROR_SPIKE_THRESHOLD = 50; // Errors per cycle
+    const currentErrorCount = info.hashrateMonitor?.asics[0]?.errorCount || 0;
+    const errorDelta = currentErrorCount - tuningState.current.previousErrorCount;
+
+    if (tuningState.current.previousErrorCount > 0 && errorDelta > ERROR_SPIKE_THRESHOLD) {
+        try {
+            // Store current state before reverting
+            const prevFreq = tuningState.current.previousFrequency || info.frequency;
+            const prevVolt = tuningState.current.previousVoltage || info.coreVoltage;
+
+            await setMinerSettings(minerConfig.ip, prevFreq, prevVolt);
+            tuningState.current.lastAdjustmentTime = Date.now();
+
+            toast({
+                variant: "destructive",
+                title: `Error Spike Detected: ${minerConfig.name || minerConfig.ip}`,
+                description: `ASIC errors increased by ${errorDelta}. Reverted to F:${prevFreq}MHz, V:${prevVolt}mV`,
+            });
+
+            // Reset tuning state
+            tuningState.current = {
+                ...tuningState.current,
+                voltageStuckCycles: 0,
+                frequencyBoostActive: false,
+                lastAdjustmentTime: Date.now(),
+                previousErrorCount: currentErrorCount
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            toast({
+                variant: 'destructive',
+                title: `Error Spike Revert Failed: ${minerConfig.name || minerConfig.ip}`,
+                description: `Failed to revert settings: ${message}`,
+            });
+        }
+        return; // Stop further tuning this cycle
+    }
+
+    // Update error count tracking
+    tuningState.current.previousErrorCount = currentErrorCount;
 
     const currentHashrateGHS = info.hashRate;
 
@@ -603,6 +681,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
         hashrateBeforeChange: 0,
         previousFrequency: 0,
         previousVoltage: 0,
+        previousErrorCount: state.info?.hashrateMonitor?.asics[0]?.errorCount || 0,
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minerConfig.ip]);
@@ -625,6 +704,14 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
   const freq = state.info?.frequency ?? 0;
   const cardTitle = minerConfig.name || state.info?.hostname || minerConfig.ip;
   const cardDescription = minerConfig.name ? minerConfig.ip : (state.info?.hostname ? `v${state.info.boardVersion}` : '');
+
+  // Calculate efficiency percentage (actual vs expected hashrate)
+  const efficiencyPercent = useMemo(() => {
+    if (state.info?.hashRate && state.info?.expectedHashrate && state.info.expectedHashrate > 0) {
+      return ((state.info.hashRate / state.info.expectedHashrate) * 100).toFixed(1);
+    }
+    return null;
+  }, [state.info?.hashRate, state.info?.expectedHashrate]);
 
 
   const StatusBadge = useMemo(() => {
@@ -713,6 +800,17 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
               <div className="pt-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                       {StatusBadge}
+                      {efficiencyPercent && (
+                        <Badge variant="outline" className="text-xs">
+                          {efficiencyPercent}% eff
+                        </Badge>
+                      )}
+                      {(state.info?.blockFound === 1 || blockFoundCelebration) && (
+                        <Badge className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black font-bold animate-pulse shadow-lg">
+                          <Trophy className="h-3 w-3 mr-1 animate-bounce" />
+                          BLOCK FOUND!
+                        </Badge>
+                      )}
                   </div>
                   
                   <div className="flex items-center gap-2">
@@ -809,9 +907,24 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                     <div className="grid grid-cols-2 gap-x-4 gap-y-4 w-full">
                         <StatItem icon={HeartPulse} label="Power" value={state.info?.power?.toFixed(2)} unit="W" loading={isLoading} />
                         <StatItem icon={Zap} label="Input Voltage" value={state.info?.voltage ? (state.info.voltage / 1000).toFixed(1) : undefined} unit="V" loading={isLoading} />
-                        <StatItem icon={Zap} label="Core Voltage" value={state.info?.coreVoltage} unit="mV" loading={isLoading} />
+                        <StatItem
+                            icon={Zap}
+                            label="Core Voltage"
+                            value={state.info?.coreVoltageActual ? `${state.info.coreVoltageActual}/${state.info.coreVoltage}` : state.info?.coreVoltage}
+                            unit="mV"
+                            loading={isLoading}
+                        />
                         <StatItem icon={Thermometer} label="Core Temp" value={state.info?.temp?.toFixed(1)} unit="°C" loading={isLoading} />
                         <StatItem icon={Thermometer} label="VRM Temp" value={state.info?.vrTemp?.toFixed(1)} unit="°C" loading={isLoading} />
+                        {state.info?.hashrateMonitor?.asics[0]?.errorCount != null && (
+                            <StatItem
+                                icon={AlertTriangle}
+                                label="ASIC Errors"
+                                value={state.info.hashrateMonitor.asics[0].errorCount.toString()}
+                                unit=""
+                                loading={isLoading}
+                            />
+                        )}
                     </div>
                 </div>
                 <div className="flex-grow" />
@@ -850,6 +963,22 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                         <div className="relative flex items-center justify-center min-h-[80px] share-animation-wrapper">
                             {isDetailsOpen && <ShareAnimation trigger={animateShare} type={shareType} />}
                         </div>
+                        {state.info?.hashrateMonitor?.asics[0] && (
+                          <div className="col-span-2">
+                            <h4 className="font-semibold mb-2">ASIC Performance</h4>
+                            <div className="grid grid-cols-4 gap-2 text-xs">
+                              {state.info.hashrateMonitor.asics[0].domains.map((domain, idx) => (
+                                <div key={idx} className="bg-background/50 p-2 rounded">
+                                  <p className="text-muted-foreground">Core {idx + 1}</p>
+                                  <p className="font-mono">{domain.toFixed(1)} GH/s</p>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              Total Errors: {state.info.hashrateMonitor.asics[0].errorCount}
+                            </div>
+                          </div>
+                        )}
                         </div>
 
                         {state.history && state.history.length > 1 ? (

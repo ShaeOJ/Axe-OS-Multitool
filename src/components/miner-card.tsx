@@ -337,9 +337,15 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
 
     const now = Date.now();
 
-    // Check if we need to verify a previous adjustment
-    if (tuningState.current.verificationCheckScheduled && now >= tuningState.current.verificationCheckTime) {
-      await verifyHashrateChange(info);
+    // Check if we need to verify a previous adjustment (with timeout protection)
+    if (tuningState.current.verificationCheckScheduled) {
+      const timeSinceScheduled = now - (tuningState.current.verificationCheckTime - (tunerSettings.verificationWaitSeconds * 1000));
+      const MAX_VERIFICATION_AGE = 120000; // 2 minutes max
+
+      // Verify if time has arrived OR if verification is too old (clock skew protection)
+      if (now >= tuningState.current.verificationCheckTime || timeSinceScheduled > MAX_VERIFICATION_AGE) {
+        await verifyHashrateChange(info);
+      }
     }
 
     // Emergency temperature thresholds - allow bypassing cooldown for critical temps
@@ -471,16 +477,24 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     const VOLTAGE_STUCK_CHECK_CYCLES = 3;
     const HASHRATE_INCREASE_TOLERANCE_GHS = 0.1;
 
-    // --- 1. Flatline Detection ---
+    // --- 1. Flatline Detection (Enhanced with Variance Check) ---
     if (flatlineDetectionEnabled && history.length >= flatlineHashrateRepeatCount) {
         const lastNHashrates = history.slice(-flatlineHashrateRepeatCount).map(p => p.hashrate);
-        const firstHashrate = lastNHashrates[0];
-        if (firstHashrate > 0 && lastNHashrates.every(h => h === firstHashrate)) {
+        const avg = lastNHashrates.reduce((sum, h) => sum + h, 0) / lastNHashrates.length;
+
+        // Calculate standard deviation to detect low variance (stuck/oscillating hashrate)
+        const variance = lastNHashrates.reduce((sum, h) => sum + Math.pow(h - avg, 2), 0) / lastNHashrates.length;
+        const stdDev = Math.sqrt(variance);
+
+        // Trigger if hashrate is non-zero but has very low variation (<1 GH/s std dev)
+        const FLATLINE_VARIANCE_THRESHOLD = 1.0; // GH/s
+
+        if (avg > 0 && stdDev < FLATLINE_VARIANCE_THRESHOLD) {
             try {
                 toast({
                     variant: "destructive",
                     title: `Auto-Tuner: Flatline Detected on ${minerConfig.name || minerConfig.ip}`,
-                    description: `Hashrate stuck at ${firstHashrate.toFixed(2)} GH/s. Restarting miner.`,
+                    description: `Hashrate stuck at ~${avg.toFixed(2)} GH/s (σ=${stdDev.toFixed(2)}). Restarting miner.`,
                 });
                 await restartMiner(minerConfig.ip);
                 tuningState.current = { ...tuningState.current, cycleCount: 0, voltageStuckCycles: 0, frequencyBoostActive: false };

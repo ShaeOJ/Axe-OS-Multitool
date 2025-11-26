@@ -15,6 +15,7 @@ import { ThemeSwitcher } from './theme-switcher';
 import { GlitchText } from './glitch-text';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getMinerData } from '@/lib/tauri-api';
+import { getExpectedHashrate } from '@/lib/device-specs';
 
 const FETCH_INTERVAL = 15000; // 15 seconds
 const MAX_HISTORY_LENGTH = 360; // Keep 90 minutes of history (360 * 15s)
@@ -44,6 +45,15 @@ export function MinerDashboard() {
         // It seems the voltage is reported in V, not mV. Let's convert it.
         if (info.coreVoltage && info.coreVoltage < 100) { // Heuristic: if value is small, it's in V.
             info.coreVoltage = parseFloat((info.coreVoltage * 1000).toFixed(0));
+        }
+
+        // If device doesn't report expectedHashrate, try to estimate from device specs
+        if (!info.expectedHashrate && info.ASICModel) {
+            const estimatedHashrate = getExpectedHashrate(info.ASICModel);
+            if (estimatedHashrate) {
+                info.estimatedExpectedHashrate = estimatedHashrate;
+                info.isEstimatedHashrate = true;
+            }
         }
 
         const hashrateInGhs = info.hashRate ? info.hashRate : 0;

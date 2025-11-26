@@ -710,9 +710,41 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
   
   const hashrateDisplay = useMemo(() => {
     if (hashrateInGhs >= 1000) {
-      return { value: hashrateInGhs / 1000, unit: 'TH/s', isFloat: true, max: 3 };
+      // Convert to TH/s for high-power miners
+      const valueInThs = hashrateInGhs / 1000;
+      // Dynamic max scaling for different miner tiers:
+      // - Standard BitAxe: up to 1.5 TH/s
+      // - NerdAxeQ++, Magic Miner BG01/BG02: up to 7 TH/s
+      // - Canaan Nano S and larger: up to 10+ TH/s
+      let max: number;
+      if (valueInThs <= 1.5) {
+        max = 2;        // Small TH/s miners (standard BitAxe overclocked)
+      } else if (valueInThs <= 3) {
+        max = 4;        // Mid-range TH/s miners
+      } else if (valueInThs <= 5) {
+        max = 6;        // Higher-end miners like some Magic Miner models
+      } else if (valueInThs <= 7) {
+        max = 8;        // NerdAxeQ++, Magic Miner BG01/BG02
+      } else if (valueInThs <= 10) {
+        max = 12;       // Canaan Nano S range
+      } else if (valueInThs <= 20) {
+        max = 25;       // Larger miners
+      } else {
+        // For very high hashrates, round up to next 10 TH/s
+        max = Math.ceil(valueInThs / 10) * 10 + 5;
+      }
+      return { value: valueInThs, unit: 'TH/s', isFloat: true, max };
     }
-    return { value: hashrateInGhs, unit: 'GH/s', isFloat: false, max: 3000 };
+    // GH/s mode - also make max dynamic for better gauge utilization
+    let max: number;
+    if (hashrateInGhs <= 500) {
+      max = 600;        // Low-power miners
+    } else if (hashrateInGhs <= 800) {
+      max = 1000;       // Standard BitAxe range
+    } else {
+      max = 1200;       // High-end GH/s range (approaching TH/s)
+    }
+    return { value: hashrateInGhs, unit: 'GH/s', isFloat: false, max };
   }, [hashrateInGhs]);
 
   const freq = state.info?.frequency ?? 0;
@@ -720,12 +752,24 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
   const cardDescription = minerConfig.name ? minerConfig.ip : (state.info?.hostname ? `v${state.info.boardVersion}` : '');
 
   // Calculate efficiency percentage (actual vs expected hashrate)
-  const efficiencyPercent = useMemo(() => {
-    if (state.info?.hashRate && state.info?.expectedHashrate && state.info.expectedHashrate > 0) {
-      return ((state.info.hashRate / state.info.expectedHashrate) * 100).toFixed(1);
+  // Uses device-reported expectedHashrate if available, otherwise falls back to estimated value
+  const efficiencyData = useMemo(() => {
+    if (!state.info?.hashRate) return null;
+
+    // Prefer device-reported expectedHashrate, fall back to estimated
+    const expectedHashrate = state.info.expectedHashrate || state.info.estimatedExpectedHashrate;
+    const isEstimated = !state.info.expectedHashrate && !!state.info.estimatedExpectedHashrate;
+
+    if (expectedHashrate && expectedHashrate > 0) {
+      return {
+        percent: ((state.info.hashRate / expectedHashrate) * 100).toFixed(1),
+        isEstimated
+      };
     }
     return null;
-  }, [state.info?.hashRate, state.info?.expectedHashrate]);
+  }, [state.info?.hashRate, state.info?.expectedHashrate, state.info?.estimatedExpectedHashrate]);
+
+  const efficiencyPercent = efficiencyData?.percent ?? null;
 
 
   const StatusBadge = useMemo(() => {
@@ -815,8 +859,14 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                   <div className="flex items-center gap-2">
                       {StatusBadge}
                       {efficiencyPercent && (
-                        <Badge variant="outline" className="text-xs">
-                          {efficiencyPercent}% eff
+                        <Badge
+                          variant="outline"
+                          className="text-xs"
+                          title={efficiencyData?.isEstimated
+                            ? `Estimated efficiency based on typical ${state.info?.ASICModel} specs`
+                            : 'Efficiency based on device-reported expected hashrate'}
+                        >
+                          {efficiencyPercent}% eff{efficiencyData?.isEstimated && '~'}
                         </Badge>
                       )}
                       {(state.info?.blockFound === 1 || blockFoundCelebration) && (

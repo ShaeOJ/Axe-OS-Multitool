@@ -55,7 +55,21 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'AxeOS Live! ${{ github.ref_name }}'
-          releaseBody: 'Building for cross platforms - V1.0'
+          releaseBody: |
+            ## What's New in V1.2
+
+            ### Features
+            - **Dynamic hashrate gauge scaling** - Properly displays high-power miners (NerdAxeQ++, Magic Miner BG01/BG02, Canaan Nano S) up to 10+ TH/s
+            - **Estimated efficiency for all miners** - Devices that don't report expected hashrate now show estimated efficiency based on known device specs
+
+            ### Supported Devices for Estimated Efficiency
+            - Magic Miner BG01/BG02
+            - NerdAxeQ++
+            - Canaan Nano S
+            - BitDSK N5.Rex (BM1397)
+            - Piaxe, Jade, Lucky Miner, NerdAxe
+
+            Estimated efficiency is shown with a `~` suffix (e.g., "95.2% eff~")
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

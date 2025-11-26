@@ -26,6 +26,8 @@ export type MinerInfo = {
   nominalVoltage?: number;
   hashRate?: number; // MHS
   expectedHashrate?: number;
+  estimatedExpectedHashrate?: number; // Estimated from device-specs when device doesn't report
+  isEstimatedHashrate?: boolean;      // Flag indicating if expectedHashrate is estimated
   errorPercentage?: number;
   bestDiff?: string;
   bestSessionDiff?: string;

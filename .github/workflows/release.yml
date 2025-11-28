@@ -56,20 +56,39 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'AxeOS Live! ${{ github.ref_name }}'
           releaseBody: |
-            ## What's New in V1.2
+            ## What's New in V1.3.0
 
-            ### Features
-            - **Dynamic hashrate gauge scaling** - Properly displays high-power miners (NerdAxeQ++, Magic Miner BG01/BG02, Canaan Nano S) up to 10+ TH/s
-            - **Estimated efficiency for all miners** - Devices that don't report expected hashrate now show estimated efficiency based on known device specs
+            ### Device-Specific Auto-Tuning
+            The auto-tuner now intelligently detects your ASIC chip type and applies optimized, safe tuning limits based on community benchmarks.
 
-            ### Supported Devices for Estimated Efficiency
-            - Magic Miner BG01/BG02
-            - NerdAxeQ++
-            - Canaan Nano S
-            - BitDSK N5.Rex (BM1397)
-            - Piaxe, Jade, Lucky Miner, NerdAxe
+            #### Features
+            - **Auto-Detection** - Automatically identifies BM1370 (Gamma), BM1368 (Supra), BM1366 (Ultra), and other ASIC chips
+            - **Safe Presets** - Each device gets tested safe frequency/voltage ranges from community benchmarks
+            - **Device Profiles** - Special handling for multi-chip devices (NerdQaxe++, Supra Hex, Ultra Hex)
+            - **Closed Firmware Warning** - Avalon Nano and similar devices show warnings that tuning isn't supported
+            - **Profile Display** - Settings dialog shows detected device profile and tuning capability
 
-            Estimated efficiency is shown with a `~` suffix (e.g., "95.2% eff~")
+            #### Device-Specific Limits (from benchmarks)
+            | Device | Safe Max Freq | Safe Max Volt |
+            |--------|---------------|---------------|
+            | BM1370 (Gamma) | 800 MHz | 1300 mV |
+            | BM1368 (Supra) | 700 MHz | 1350 mV |
+            | BM1366 (Ultra) | 600 MHz | 1300 mV |
+            | NerdQaxe++ | 750 MHz | 1250 mV |
+            | Lucky Miner LV08 | 600 MHz | 1300 mV |
+
+            #### Supported Devices
+            - Bitaxe Gamma 601/602, Supra 401, Ultra 204
+            - Bitaxe Supra Hex 701, Ultra Hex
+            - NerdQaxe++ (all revisions)
+            - MagicMiner BG01/BG02
+            - Lucky Miner LV06/LV08
+            - Avalon Nano 3/3S (monitoring only - closed firmware)
+
+            ### Other Improvements
+            - Updated device specifications database with accurate hashrate estimates
+            - Conservative defaults for unknown devices to prevent damage
+            - Warning badges for devices with limited or no tuning support
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

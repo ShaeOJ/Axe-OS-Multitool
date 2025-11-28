@@ -6,7 +6,13 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const Dialog = DialogPrimitive.Root
+// Wrap Dialog Root to ensure modal behavior
+const Dialog = ({ children, ...props }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Root>) => (
+  <DialogPrimitive.Root modal={true} {...props}>
+    {children}
+  </DialogPrimitive.Root>
+);
+Dialog.displayName = "Dialog";
 
 const DialogTrigger = DialogPrimitive.Trigger
 
@@ -24,6 +30,8 @@ const DialogOverlay = React.forwardRef<
       "fixed inset-0 z-50 flex items-center justify-center bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
+    // Prevent overlay clicks from closing dialog
+    onClick={(e) => e.stopPropagation()}
     {...props}
   />
 ))
@@ -41,6 +49,22 @@ const DialogContent = React.forwardRef<
           "z-50 grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg data-[state=open]:animate-power-on data-[state=closed]:animate-power-off sm:rounded-lg",
           className
         )}
+        onPointerDownOutside={(e) => {
+          // Prevent closing when clicking outside - only close via X button
+          e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          // Prevent any interaction outside from closing
+          e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          // Only allow escape if explicitly wanted - for now prevent auto-close
+          // Users can click the X button to close
+        }}
+        onFocusOutside={(e) => {
+          // Prevent focus loss from closing the dialog
+          e.preventDefault();
+        }}
         {...props}
       >
         {children}

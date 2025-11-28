@@ -30,6 +30,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ShareAnimation } from './share-animation';
 import { getMinerData, restartMiner as restartMinerTauri, updateMinerSettings } from '@/lib/tauri-api';
+import { getTuningPreset, getTuningWarning, supportsTuning, type TuningCapability } from '@/lib/asic-presets';
+import { getDeviceOptimizedSettings } from '@/lib/default-settings';
 
 
 // New state for advanced tuning logic
@@ -147,7 +149,7 @@ const StatItem = ({ icon: Icon, label, value, unit, loading }: { icon: React.Ele
     </div>
   );
 
-export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMiner }: MinerCardProps) {
+export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMiner, powerSettings, cardSize = 'normal', group }: MinerCardProps) {
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
   const [isCardOpen, setIsCardOpen] = useState(true);
@@ -209,6 +211,62 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     prevRejectedSharesRef.current = currentRejectedShares;
     prevBlockFoundRef.current = currentBlockFound;
   }, [state.info?.sharesAccepted, state.info?.sharesRejected, state.info?.blockFound, minerConfig.name, minerConfig.ip, toast]);
+
+  // Detect device profile for optimized tuning presets
+  const deviceTuningInfo = useMemo(() => {
+    const asicModel = state.info?.ASICModel;
+    const hostname = state.info?.hostname;
+    const preset = getTuningPreset(asicModel, hostname);
+    const warning = getTuningWarning(asicModel, hostname);
+    const canTune = supportsTuning(asicModel, hostname);
+
+    return {
+      profileName: preset.profileName,
+      capability: preset.capability,
+      warning,
+      canTune,
+      preset,
+    };
+  }, [state.info?.ASICModel, state.info?.hostname]);
+
+  // Track if we've already applied device-optimized settings for this miner
+  const hasAppliedOptimizedSettings = useRef(false);
+
+  // Auto-apply optimized settings when device is first detected
+  useEffect(() => {
+    // Only apply once per miner session and only if we have device info
+    if (hasAppliedOptimizedSettings.current || !state.info?.ASICModel) {
+      return;
+    }
+
+    // Only auto-apply if tuner settings are at default values (not user-customized)
+    // We detect this by checking if minFreq and maxFreq are at conservative defaults
+    const isUsingDefaults = tunerSettings.minFreq === 400 && tunerSettings.maxFreq === 650;
+
+    if (isUsingDefaults && deviceTuningInfo.canTune) {
+      const optimized = getDeviceOptimizedSettings(
+        state.info.ASICModel,
+        state.info.hostname,
+        { enabled: tunerSettings.enabled } // Preserve enabled state
+      );
+
+      // Only update if preset values are different
+      if (
+        optimized.minFreq !== tunerSettings.minFreq ||
+        optimized.maxFreq !== tunerSettings.maxFreq ||
+        optimized.minVolt !== tunerSettings.minVolt ||
+        optimized.maxVolt !== tunerSettings.maxVolt
+      ) {
+        updateMiner({ ip: minerConfig.ip, tunerSettings: optimized });
+        toast({
+          title: `Auto-Tuner: ${deviceTuningInfo.profileName} Detected`,
+          description: `Applied optimized tuning limits for ${state.info.ASICModel}. Freq: ${optimized.minFreq}-${optimized.maxFreq}MHz, Volt: ${optimized.minVolt}-${optimized.maxVolt}mV`,
+        });
+      }
+    }
+
+    hasAppliedOptimizedSettings.current = true;
+  }, [state.info?.ASICModel, state.info?.hostname, deviceTuningInfo, tunerSettings, updateMiner, minerConfig.ip, toast]);
 
   const tuningState = useRef<TuningState>({
     voltageStuckCycles: 0,
@@ -331,7 +389,16 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
   }, [minerConfig.ip, minerConfig.name, toast]);
 
   const tuneMiner = useCallback(async (info: MinerInfo, history: MinerDataPoint[]) => {
-    if (!tunerSettings.enabled || info.temp == null || info.vrTemp == null || info.frequency == null || info.coreVoltage == null || info.hashRate == null) {
+    // Core requirements: temp, frequency, coreVoltage, hashRate
+    // vrTemp is optional (NerdAxe devices may not report it)
+    if (!tunerSettings.enabled || info.temp == null || info.frequency == null || info.coreVoltage == null || info.hashRate == null) {
+        return;
+    }
+
+    // Skip tuning for closed-firmware devices (Avalon, etc.)
+    const tuningPreset = getTuningPreset(info.ASICModel, info.hostname);
+    if (tuningPreset.capability === 'closed') {
+        console.log(`[Auto-Tuner] Skipping ${minerConfig.name || minerConfig.ip}: Closed firmware device (${tuningPreset.profileName})`);
         return;
     }
 
@@ -351,7 +418,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     // Emergency temperature thresholds - allow bypassing cooldown for critical temps
     const EMERGENCY_TEMP_THRESHOLD = 75; // °C
     const EMERGENCY_VR_TEMP_THRESHOLD = 85; // °C
-    const isEmergency = info.temp > EMERGENCY_TEMP_THRESHOLD || info.vrTemp > EMERGENCY_VR_TEMP_THRESHOLD;
+    const isEmergency = info.temp > EMERGENCY_TEMP_THRESHOLD || (info.vrTemp != null && info.vrTemp > EMERGENCY_VR_TEMP_THRESHOLD);
 
     if (!isEmergency && now - tuningState.current.lastAdjustmentTime < 60000) { // 60 seconds
         return;
@@ -604,7 +671,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     
     let proposedChanges: {frequency?: number, voltage?: number} = {};
 
-    if (info.vrTemp > vrTargetTemp) { // VRM HOT
+    if (info.vrTemp != null && info.vrTemp > vrTargetTemp) { // VRM HOT
         reason = `VRM Hot (${info.vrTemp.toFixed(1)}°C > ${vrTargetTemp.toFixed(1)}°C)`;
         // Reduce both frequency and voltage for faster cooling
         if (new_freq - vrTempFreqStepDown >= minFreq) {
@@ -771,6 +838,23 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
 
   const efficiencyPercent = efficiencyData?.percent ?? null;
 
+  // Calculate daily power cost
+  const dailyPowerCost = useMemo(() => {
+    if (!powerSettings?.showPowerCost || !state.info?.power) return null;
+    // Power in W, convert to kW, multiply by 24 hours, multiply by rate
+    const kWh = (state.info.power / 1000) * 24;
+    return (kWh * powerSettings.electricityRate).toFixed(2);
+  }, [state.info?.power, powerSettings?.showPowerCost, powerSettings?.electricityRate]);
+
+  // Calculate efficiency in J/TH (Joules per Terahash)
+  const joulesPerTH = useMemo(() => {
+    if (!powerSettings?.showEfficiency || !state.info?.power || !state.info?.hashRate) return null;
+    // Power in W (J/s), hashrate in GH/s
+    // J/TH = (W * 1000) / (GH/s) = W / (TH/s)
+    const hashrateInTH = state.info.hashRate / 1000;
+    if (hashrateInTH <= 0) return null;
+    return (state.info.power / hashrateInTH).toFixed(1);
+  }, [state.info?.power, state.info?.hashRate, powerSettings?.showEfficiency]);
 
   const StatusBadge = useMemo(() => {
     if (state.loading && !state.info) {
@@ -858,6 +942,19 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
               <div className="pt-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                       {StatusBadge}
+                      {group && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs gap-1"
+                          style={{ borderColor: group.color, color: group.color }}
+                        >
+                          <div
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: group.color }}
+                          />
+                          {group.name}
+                        </Badge>
+                      )}
                       {efficiencyPercent && (
                         <Badge
                           variant="outline"
@@ -878,19 +975,41 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                   </div>
                   
                   <div className="flex items-center gap-2">
-                      <Switch 
-                          id={`autotune-${minerConfig.ip}`} 
+                      {/* Warning badge for closed/limited firmware */}
+                      {deviceTuningInfo.warning && tunerSettings.enabled && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-yellow-500 hover:text-yellow-400">
+                              <AlertTriangle className="h-4 w-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80 text-sm">
+                            <div className="space-y-2">
+                              <p className="font-semibold text-yellow-500">Tuning Warning</p>
+                              <p className="text-muted-foreground">{deviceTuningInfo.warning}</p>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      <Switch
+                          id={`autotune-${minerConfig.ip}`}
                           checked={tunerSettings.enabled}
                           onCheckedChange={(checked) => handleTunerSettingChange('enabled', checked)}
+                          disabled={deviceTuningInfo.capability === 'closed'}
                           />
-                      <Label htmlFor={`autotune-${minerConfig.ip}`} className="text-sm">Auto-Tuner</Label>
+                      <Label
+                        htmlFor={`autotune-${minerConfig.ip}`}
+                        className={cn("text-sm", deviceTuningInfo.capability === 'closed' && "text-muted-foreground")}
+                      >
+                        Auto-Tuner
+                      </Label>
                           <Dialog open={isTunerSettingsOpen} onOpenChange={setIsTunerSettingsOpen}>
                               <DialogTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-6 w-6">
                                       <Settings className={cn("h-4 w-4", tunerSettings.enabled && "animate-spin-slow")}/>
                                   </Button>
                               </DialogTrigger>
-                              <DialogContent 
+                              <DialogContent
                                   className="w-full max-w-[95vw] sm:max-w-lg md:max-w-2xl lg:max-w-4xl"
                                   style={{
                                       backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, hsl(var(--foreground)/.1) 2px, hsl(var(--foreground)/.1) 4px)',
@@ -900,9 +1019,36 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                                       <DialogTitle>Auto-Tuner Settings</DialogTitle>
                                   </DialogHeader>
                                   <div className="space-y-4">
+                                  {/* Device Profile Info */}
+                                  <div className="rounded-lg border p-3 bg-muted/30">
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <p className="text-sm font-medium">Device Profile</p>
+                                          <p className="text-xs text-muted-foreground">
+                                            {deviceTuningInfo.profileName || 'Unknown Device'}
+                                            {state.info?.ASICModel && ` (${state.info.ASICModel})`}
+                                          </p>
+                                        </div>
+                                        <Badge
+                                          variant={deviceTuningInfo.capability === 'full' ? 'default' :
+                                                   deviceTuningInfo.capability === 'limited' ? 'secondary' :
+                                                   deviceTuningInfo.capability === 'closed' ? 'destructive' : 'outline'}
+                                        >
+                                          {deviceTuningInfo.capability === 'full' ? 'Full Tuning' :
+                                           deviceTuningInfo.capability === 'limited' ? 'Limited' :
+                                           deviceTuningInfo.capability === 'closed' ? 'No Tuning' : 'Unknown'}
+                                        </Badge>
+                                      </div>
+                                      {deviceTuningInfo.warning && (
+                                        <p className="text-xs text-yellow-500 mt-2 flex items-center gap-1">
+                                          <AlertTriangle className="h-3 w-3" />
+                                          {deviceTuningInfo.warning}
+                                        </p>
+                                      )}
+                                  </div>
                                   <div>
                                       <p className="text-sm text-muted-foreground">
-                                      Fine-tune the automatic tuning algorithm.
+                                      Fine-tune the automatic tuning algorithm. Settings are optimized for your {deviceTuningInfo.profileName || 'device'}.
                                       </p>
                                   </div>
                                   <ScrollArea className="h-[60vh] rounded-md border p-4">
@@ -957,41 +1103,83 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
           <CollapsibleContent className="overflow-hidden data-[state=closed]:h-0">
             {isCardOpen && (
               <CardContent className="pt-0">
-                <div className="grid grid-cols-2 gap-4 place-items-stretch pt-6">
-                    <StatCircle value={hashrateDisplay.value} max={hashrateDisplay.max} label="Hashrate" unit={hashrateDisplay.unit} icon={Zap} accentColor={minerConfig.accentColor} formatAsFloat={hashrateDisplay.isFloat} />
-                    <StatCircle value={freq} max={1000} label="Frequency" unit="MHz" icon={Gauge} accentColor={minerConfig.accentColor} />
-
-                {state.error && !state.info && (
-                    <div className="col-span-2 text-center text-muted-foreground pt-4">
-                        <p>{state.error}</p>
+                {/* Compact mode: smaller layout with key stats only */}
+                {cardSize === 'compact' ? (
+                  <div className="pt-4 pb-2">
+                    <div className="grid grid-cols-4 gap-2 text-center">
+                      <div>
+                        <p className="text-lg font-bold" style={{ color: minerConfig.accentColor }}>
+                          {hashrateDisplay.isFloat ? hashrateDisplay.value.toFixed(2) : hashrateDisplay.value.toFixed(0)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{hashrateDisplay.unit}</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold">{state.info?.temp?.toFixed(0) ?? '--'}</p>
+                        <p className="text-xs text-muted-foreground">°C</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold">{state.info?.power?.toFixed(0) ?? '--'}</p>
+                        <p className="text-xs text-muted-foreground">W</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold">{freq}</p>
+                        <p className="text-xs text-muted-foreground">MHz</p>
+                      </div>
                     </div>
-                )}
-                </div>
-                <div className="px-6 pt-4 pb-4 flex flex-col items-center gap-y-4">
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-4 w-full">
-                        <StatItem icon={HeartPulse} label="Power" value={state.info?.power?.toFixed(2)} unit="W" loading={isLoading} />
-                        <StatItem icon={Zap} label="Input Voltage" value={state.info?.voltage ? (state.info.voltage / 1000).toFixed(1) : undefined} unit="V" loading={isLoading} />
-                        <StatItem
-                            icon={Zap}
-                            label="Core Voltage"
-                            value={state.info?.coreVoltageActual ? `${state.info.coreVoltageActual}/${state.info.coreVoltage}` : state.info?.coreVoltage}
-                            unit="mV"
-                            loading={isLoading}
-                        />
-                        <StatItem icon={Thermometer} label="Core Temp" value={state.info?.temp?.toFixed(1)} unit="°C" loading={isLoading} />
-                        <StatItem icon={Thermometer} label="VRM Temp" value={state.info?.vrTemp?.toFixed(1)} unit="°C" loading={isLoading} />
-                        {state.info?.hashrateMonitor?.asics[0]?.errorCount != null && (
+                    {state.error && !state.info && (
+                      <div className="text-center text-muted-foreground pt-2">
+                        <p className="text-sm">{state.error}</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {/* Normal/Expanded mode: full stat circles and details */}
+                    <div className="grid grid-cols-2 gap-4 place-items-stretch pt-6">
+                        <StatCircle value={hashrateDisplay.value} max={hashrateDisplay.max} label="Hashrate" unit={hashrateDisplay.unit} icon={Zap} accentColor={minerConfig.accentColor} formatAsFloat={hashrateDisplay.isFloat} />
+                        <StatCircle value={freq} max={1000} label="Frequency" unit="MHz" icon={Gauge} accentColor={minerConfig.accentColor} />
+
+                    {state.error && !state.info && (
+                        <div className="col-span-2 text-center text-muted-foreground pt-4">
+                            <p>{state.error}</p>
+                        </div>
+                    )}
+                    </div>
+                    <div className="px-6 pt-4 pb-4 flex flex-col items-center gap-y-4">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-4 w-full">
+                            <StatItem icon={HeartPulse} label="Power" value={state.info?.power?.toFixed(2)} unit="W" loading={isLoading} />
+                            {dailyPowerCost && (
+                                <StatItem icon={Zap} label="Daily Cost" value={dailyPowerCost} unit={`${powerSettings?.currency || '$'}/day`} loading={isLoading} />
+                            )}
+                            {joulesPerTH && (
+                                <StatItem icon={Gauge} label="Efficiency" value={joulesPerTH} unit="J/TH" loading={isLoading} />
+                            )}
+                            <StatItem icon={Zap} label="Input Voltage" value={state.info?.voltage ? (state.info.voltage / 1000).toFixed(1) : undefined} unit="V" loading={isLoading} />
                             <StatItem
-                                icon={AlertTriangle}
-                                label="ASIC Errors"
-                                value={state.info.hashrateMonitor.asics[0].errorCount.toString()}
-                                unit=""
+                                icon={Zap}
+                                label="Core Voltage"
+                                value={state.info?.coreVoltageActual ? `${state.info.coreVoltageActual}/${state.info.coreVoltage}` : state.info?.coreVoltage}
+                                unit="mV"
                                 loading={isLoading}
                             />
-                        )}
+                            <StatItem icon={Thermometer} label="Core Temp" value={state.info?.temp?.toFixed(1)} unit="°C" loading={isLoading} />
+                            <StatItem icon={Thermometer} label="VRM Temp" value={state.info?.vrTemp?.toFixed(1)} unit="°C" loading={isLoading} />
+                            {state.info?.hashrateMonitor?.asics[0]?.errorCount != null && (
+                                <StatItem
+                                    icon={AlertTriangle}
+                                    label="ASIC Errors"
+                                    value={state.info.hashrateMonitor.asics[0].errorCount.toString()}
+                                    unit=""
+                                    loading={isLoading}
+                                />
+                            )}
+                        </div>
                     </div>
-                </div>
+                  </>
+                )}
                 <div className="flex-grow" />
+                {/* Show footer only in normal/expanded mode */}
+                {cardSize !== 'compact' && (
                 <CardFooter className="flex-col items-stretch p-0">
                 <Separator />
                     <div className="flex justify-center items-center p-1">
@@ -1057,6 +1245,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                     </div>
                 )}
             </CardFooter>
+                )}
             </CardContent>
             )}
           </CollapsibleContent>
@@ -1077,10 +1266,20 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
   );
 }
 
+interface PowerSettings {
+  electricityRate: number;
+  currency: string;
+  showPowerCost: boolean;
+  showEfficiency: boolean;
+}
+
 interface MinerCardProps {
   minerConfig: MinerConfig;
   onRemove: (ip: string) => void;
   isRemoving: boolean;
   state: MinerState;
   updateMiner: (miner: Partial<MinerConfig> & { ip: string }) => void;
+  powerSettings?: PowerSettings;
+  cardSize?: 'compact' | 'normal' | 'expanded';
+  group?: { id: string; name: string; color: string };
 }

@@ -49,6 +49,11 @@ const Toast = React.forwardRef<
     <ToastPrimitives.Root
       ref={ref}
       className={cn(toastVariants({ variant }), className)}
+      // Prevent toast from stealing focus from dialogs
+      onOpenChange={(open) => {
+        // Don't manipulate focus when opening/closing
+        props.onOpenChange?.(open);
+      }}
       {...props}
     />
   )

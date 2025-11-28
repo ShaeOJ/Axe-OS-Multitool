@@ -4,6 +4,28 @@ export type MinerConfig = {
   name: string;
   accentColor: string;
   tunerSettings: AutoTunerSettings;
+  groupId?: string; // Optional group assignment
+  sortOrder?: number; // For custom ordering
+};
+
+// Miner group for organizing miners
+export type MinerGroup = {
+  id: string;
+  name: string;
+  color: string;
+  collapsed?: boolean; // Whether the group is collapsed in view
+};
+
+// Card display size options
+export type CardSize = 'compact' | 'normal' | 'expanded';
+
+// Dashboard layout preferences
+export type DashboardLayout = {
+  cardSize: CardSize;
+  showOfflineMiners: boolean;
+  groupBy: 'none' | 'group' | 'status';
+  sortBy: 'name' | 'hashrate' | 'temperature' | 'power' | 'custom';
+  sortDirection: 'asc' | 'desc';
 };
 
 // ASIC domain breakdown for advanced monitoring

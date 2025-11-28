@@ -29,6 +29,26 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
+
+    /* Extended miner card color palette - Light mode */
+    --miner-green: 150 70% 40%;
+    --miner-emerald: 160 84% 39%;
+    --miner-teal: 175 77% 36%;
+    --miner-cyan: 189 94% 43%;
+    --miner-sky: 199 89% 48%;
+    --miner-blue: 217 91% 60%;
+    --miner-indigo: 239 84% 67%;
+    --miner-violet: 258 90% 66%;
+    --miner-purple: 271 91% 65%;
+    --miner-fuchsia: 292 84% 61%;
+    --miner-pink: 330 81% 60%;
+    --miner-rose: 350 89% 60%;
+    --miner-red: 0 84% 60%;
+    --miner-orange: 25 95% 53%;
+    --miner-amber: 38 92% 50%;
+    --miner-yellow: 48 96% 53%;
+    --miner-lime: 84 81% 44%;
+    --miner-slate: 215 20% 50%;
   }
   .dark {
     --background: 210 10% 5%;
@@ -55,6 +75,26 @@
     --chart-3: 50 100% 70%;
     --chart-4: 300 100% 70%;
     --chart-5: 250 100% 75%;
+
+    /* Extended miner card color palette - Dark mode (brighter for visibility) */
+    --miner-green: 150 100% 60%;
+    --miner-emerald: 160 100% 55%;
+    --miner-teal: 175 100% 50%;
+    --miner-cyan: 189 100% 60%;
+    --miner-sky: 199 100% 65%;
+    --miner-blue: 217 100% 70%;
+    --miner-indigo: 239 100% 75%;
+    --miner-violet: 258 100% 75%;
+    --miner-purple: 271 100% 75%;
+    --miner-fuchsia: 292 100% 70%;
+    --miner-pink: 330 100% 70%;
+    --miner-rose: 350 100% 68%;
+    --miner-red: 0 100% 65%;
+    --miner-orange: 25 100% 60%;
+    --miner-amber: 38 100% 60%;
+    --miner-yellow: 48 100% 65%;
+    --miner-lime: 84 100% 55%;
+    --miner-slate: 215 30% 60%;
   }
 }
 

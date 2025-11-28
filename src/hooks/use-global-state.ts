@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { MinerConfig } from '@/lib/types';
+import type { MinerConfig, AutoTunerSettings } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { defaultTunerSettings } from '@/lib/default-settings';
 import { Store } from '@tauri-apps/plugin-store';
@@ -135,5 +135,107 @@ export const useGlobalState = () => {
     }
   }, [toast]);
 
-  return { miners, addMiner, removeMiner, updateMiner };
+  const restoreMiners = useCallback((newMiners: MinerConfig[]) => {
+    try {
+      setMiners(newMiners);
+    } catch (error) {
+      console.error('Error restoring miners:', error);
+      toast({
+        variant: "destructive",
+        title: "Error restoring miners",
+        description: error instanceof Error ? error.message : "Could not restore miners.",
+      });
+    }
+  }, [toast]);
+
+  // Bulk update multiple miners at once
+  const bulkUpdateMiners = useCallback((ips: string[], updates: Partial<MinerConfig>) => {
+    try {
+      setMiners((prevMiners) =>
+        prevMiners.map((m) =>
+          ips.includes(m.ip) ? { ...m, ...updates } : m
+        )
+      );
+      toast({
+        title: "Miners updated",
+        description: `Updated ${ips.length} miner(s).`,
+      });
+    } catch (error) {
+      console.error('Error bulk updating miners:', error);
+      toast({
+        variant: "destructive",
+        title: "Error updating miners",
+        description: error instanceof Error ? error.message : "Could not update miners.",
+      });
+    }
+  }, [toast]);
+
+  // Bulk update tuner settings
+  const bulkUpdateTunerSettings = useCallback((ips: string[], settings: Partial<AutoTunerSettings>) => {
+    try {
+      setMiners((prevMiners) =>
+        prevMiners.map((m) =>
+          ips.includes(m.ip)
+            ? { ...m, tunerSettings: { ...m.tunerSettings, ...settings } }
+            : m
+        )
+      );
+      toast({
+        title: "Settings updated",
+        description: `Updated settings for ${ips.length} miner(s).`,
+      });
+    } catch (error) {
+      console.error('Error bulk updating tuner settings:', error);
+      toast({
+        variant: "destructive",
+        title: "Error updating settings",
+        description: error instanceof Error ? error.message : "Could not update settings.",
+      });
+    }
+  }, [toast]);
+
+  // Assign miners to a group
+  const assignMinersToGroup = useCallback((ips: string[], groupId: string | undefined) => {
+    try {
+      setMiners((prevMiners) =>
+        prevMiners.map((m) =>
+          ips.includes(m.ip) ? { ...m, groupId } : m
+        )
+      );
+    } catch (error) {
+      console.error('Error assigning miners to group:', error);
+      toast({
+        variant: "destructive",
+        title: "Error assigning group",
+        description: error instanceof Error ? error.message : "Could not assign group.",
+      });
+    }
+  }, [toast]);
+
+  // Reorder miners (for drag and drop)
+  const reorderMiners = useCallback((startIndex: number, endIndex: number) => {
+    try {
+      setMiners((prevMiners) => {
+        const result = Array.from(prevMiners);
+        const [removed] = result.splice(startIndex, 1);
+        result.splice(endIndex, 0, removed);
+        // Update sortOrder for all miners
+        return result.map((m, index) => ({ ...m, sortOrder: index }));
+      });
+    } catch (error) {
+      console.error('Error reordering miners:', error);
+    }
+  }, []);
+
+  return {
+    miners,
+    addMiner,
+    removeMiner,
+    updateMiner,
+    restoreMiners,
+    bulkUpdateMiners,
+    bulkUpdateTunerSettings,
+    assignMinersToGroup,
+    reorderMiners,
+  };
 };

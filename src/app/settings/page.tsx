@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Bell, Zap, RotateCcw, Settings, RefreshCw } from 'lucide-react';
+import { Bell, Zap, RotateCcw, Settings, RefreshCw, Info } from 'lucide-react';
 import { Store } from '@tauri-apps/plugin-store';
 import type { AlertSettings, PowerSettings, AppSettings } from '@/lib/alert-settings';
 import { defaultAppSettings } from '@/lib/alert-settings';
+import { VersionInfo } from '@/components/update-banner';
 
 const SETTINGS_KEY = 'axeos-app-settings';
 const SAVE_DEBOUNCE_MS = 500; // Debounce saves to avoid excessive disk writes
@@ -151,7 +152,7 @@ export default function SettingsPage() {
         </div>
 
         <Tabs defaultValue="alerts" className="mt-4">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="alerts" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
               Alerts
@@ -159,6 +160,10 @@ export default function SettingsPage() {
             <TabsTrigger value="power" className="flex items-center gap-2">
               <Zap className="h-4 w-4" />
               Power & Cost
+            </TabsTrigger>
+            <TabsTrigger value="about" className="flex items-center gap-2">
+              <Info className="h-4 w-4" />
+              About
             </TabsTrigger>
           </TabsList>
 
@@ -406,6 +411,72 @@ export default function SettingsPage() {
                 <span>{powerSettings.currency}{((25 / 1000) * 24 * powerSettings.electricityRate).toFixed(2)}/day</span>
                 <span className="text-muted-foreground">100W miner:</span>
                 <span>{powerSettings.currency}{((100 / 1000) * 24 * powerSettings.electricityRate).toFixed(2)}/day</span>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="about" className="space-y-6 mt-4">
+            {/* App Info */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                Application
+              </h4>
+
+              <div className="rounded-lg border p-4 space-y-4">
+                <div>
+                  <h3 className="text-lg font-bold">AxeOS Live!</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Monitor and manage your Bitaxe and AxeOS-based miners
+                  </p>
+                </div>
+
+                <VersionInfo />
+              </div>
+            </div>
+
+            {/* Links */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                Links
+              </h4>
+
+              <div className="grid gap-2">
+                <Button
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => window.open('https://github.com/ShaeOJ/Axe-OS-Multitool', '_blank')}
+                >
+                  GitHub Repository
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => window.open('https://github.com/ShaeOJ/Axe-OS-Multitool/issues', '_blank')}
+                >
+                  Report an Issue
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => window.open('https://github.com/ShaeOJ/Axe-OS-Multitool/releases', '_blank')}
+                >
+                  View All Releases
+                </Button>
+              </div>
+            </div>
+
+            {/* Credits */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                Credits
+              </h4>
+
+              <div className="rounded-lg border p-4 bg-muted/50">
+                <p className="text-sm text-muted-foreground">
+                  Built with Tauri, Next.js, and React.
+                  <br />
+                  Made for the Bitcoin mining community.
+                </p>
               </div>
             </div>
           </TabsContent>

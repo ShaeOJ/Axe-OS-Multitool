@@ -25,6 +25,7 @@ import type { MinerConfig, MinerState } from '@/lib/types';
 
 type MetricKey = 'hashrate' | 'temperature' | 'power' | 'voltage' | 'frequency';
 type CompareMetric = 'hashrate' | 'temperature' | 'power' | 'efficiency';
+type ViewMode = 'snapshot' | 'timeline';
 
 interface AnalyticsData {
   miners: MinerConfig[];
@@ -45,6 +46,7 @@ export default function AnalyticsPage() {
   // Lifted state for MinerComparisonChart - persists across data updates
   const [comparisonSelectedMiners, setComparisonSelectedMiners] = useState<string[]>([]);
   const [comparisonMetric, setComparisonMetric] = useState<CompareMetric>('hashrate');
+  const [comparisonViewMode, setComparisonViewMode] = useState<ViewMode>('snapshot');
   const comparisonInitializedRef = useRef(false);
 
   // Request data from main window
@@ -237,6 +239,8 @@ export default function AnalyticsPage() {
                 onSelectedMinersChange={setComparisonSelectedMiners}
                 compareMetric={comparisonMetric}
                 onCompareMetricChange={setComparisonMetric}
+                viewMode={comparisonViewMode}
+                onViewModeChange={setComparisonViewMode}
               />
             ) : (
               <div className="h-[400px] flex items-center justify-center text-muted-foreground border rounded-lg">

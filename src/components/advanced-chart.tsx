@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, useRef, useEffect } from 'react';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import type { MinerDataPoint } from '@/lib/types';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
@@ -60,6 +60,20 @@ export const AdvancedChart = memo(function AdvancedChart({
 
   const visibleMetrics = controlledVisibleMetrics ?? internalVisibleMetrics;
   const setVisibleMetrics = onVisibleMetricsChange ?? setInternalVisibleMetrics;
+
+  // Track if this is the initial render to only animate once
+  const hasAnimatedRef = useRef(false);
+  const isAnimationActive = !hasAnimatedRef.current;
+
+  useEffect(() => {
+    // After first render with data, disable future animations
+    if (history && history.length > 0 && !hasAnimatedRef.current) {
+      const timer = setTimeout(() => {
+        hasAnimatedRef.current = true;
+      }, 350); // Slightly longer than animation duration
+      return () => clearTimeout(timer);
+    }
+  }, [history]);
 
   // Early return if no data
   if (!history || history.length === 0) {
@@ -279,6 +293,7 @@ export const AdvancedChart = memo(function AdvancedChart({
             strokeWidth={visibleMetrics.includes('hashrate') ? 2 : 0}
             dot={false}
             activeDot={visibleMetrics.includes('hashrate') ? { r: 4 } : false}
+            isAnimationActive={isAnimationActive}
             animationDuration={300}
             animationEasing="ease-out"
           />
@@ -291,6 +306,7 @@ export const AdvancedChart = memo(function AdvancedChart({
             strokeWidth={visibleMetrics.includes('hashrate') ? 1.5 : 0}
             dot={false}
             strokeDasharray="5 5"
+            isAnimationActive={isAnimationActive}
             animationDuration={300}
             animationEasing="ease-out"
           />
@@ -305,6 +321,7 @@ export const AdvancedChart = memo(function AdvancedChart({
             strokeWidth={visibleMetrics.includes('temperature') ? 2 : 0}
             dot={false}
             activeDot={visibleMetrics.includes('temperature') ? { r: 4 } : false}
+            isAnimationActive={isAnimationActive}
             animationDuration={300}
             animationEasing="ease-out"
           />
@@ -319,6 +336,7 @@ export const AdvancedChart = memo(function AdvancedChart({
             strokeWidth={visibleMetrics.includes('power') ? 2 : 0}
             dot={false}
             activeDot={visibleMetrics.includes('power') ? { r: 4 } : false}
+            isAnimationActive={isAnimationActive}
             animationDuration={300}
             animationEasing="ease-out"
           />
@@ -333,6 +351,7 @@ export const AdvancedChart = memo(function AdvancedChart({
             strokeWidth={visibleMetrics.includes('voltage') ? 2 : 0}
             dot={false}
             activeDot={visibleMetrics.includes('voltage') ? { r: 4 } : false}
+            isAnimationActive={isAnimationActive}
             animationDuration={300}
             animationEasing="ease-out"
           />
@@ -347,6 +366,7 @@ export const AdvancedChart = memo(function AdvancedChart({
             strokeWidth={visibleMetrics.includes('frequency') ? 2 : 0}
             dot={false}
             activeDot={visibleMetrics.includes('frequency') ? { r: 4 } : false}
+            isAnimationActive={isAnimationActive}
             animationDuration={300}
             animationEasing="ease-out"
           />

@@ -52,6 +52,9 @@ type TuningState = {
     previousFrequency: number;
     previousVoltage: number;
     previousErrorCount: number;
+    // Ambient temp spike detection while paused
+    tempAtPause: number;
+    pauseTime: number;
 };
 
 const setMinerSettings = async (ip: string, frequency: number, coreVoltage: number) => {
@@ -284,6 +287,8 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     previousFrequency: 0,
     previousVoltage: 0,
     previousErrorCount: 0,
+    tempAtPause: 0,
+    pauseTime: 0,
   });
 
   const analyzeAndDetermineBestSettings = useCallback((history: MinerDataPoint[]) => {
@@ -531,20 +536,40 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     const lastTemp = tuningState.current.lastTemp;
     tuningState.current.lastTemp = info.temp;
 
+    // Check if tuner should unpause (temp moved outside ideal range or ambient spike detected)
     if (tuningState.current.tunerPaused) {
-        // Unpause if temp moves outside the ideal range (either hotter or cooler)
         const tempDiff = Math.abs(info.temp - targetTemp);
+        const now = Date.now();
+
+        // Ambient temperature spike detection while paused
+        // Check every 5 minutes (20 cycles at 15s each) if temp has risen significantly since pause
+        const AMBIENT_CHECK_INTERVAL = 300000; // 5 minutes in ms
+        const AMBIENT_SPIKE_THRESHOLD = 3; // °C rise from pause temperature triggers unpause
+
+        const timeSincePause = now - tuningState.current.pauseTime;
+        const tempRiseSincePause = info.temp - tuningState.current.tempAtPause;
+
         if (tempDiff >= 2) {
+            // Standard unpause: temp moved outside ideal range
             tuningState.current.tunerPaused = false;
-        } else {
-            return; // Still in ideal range, stay paused
+        } else if (timeSincePause >= AMBIENT_CHECK_INTERVAL && tempRiseSincePause >= AMBIENT_SPIKE_THRESHOLD) {
+            // Ambient spike detected: temp has risen significantly since we paused
+            // This catches gradual ambient temp increases that push the miner hotter
+            tuningState.current.tunerPaused = false;
+            toast({
+                title: `Auto-Tuner: ${minerConfig.name || minerConfig.ip}`,
+                description: `Ambient temp rise detected (+${tempRiseSincePause.toFixed(1)}°C since pause). Resuming tuning.`,
+            });
         }
+        // Note: We no longer return early here - safety checks and auto-optimization
+        // continue to run even when paused. Only temperature adjustments are skipped.
     }
-    
+
     const VOLTAGE_STUCK_CHECK_CYCLES = 3;
     const HASHRATE_INCREASE_TOLERANCE_GHS = 0.1;
 
     // --- 1. Flatline Detection (Enhanced with Variance Check) ---
+    // This safety check runs even when tuner is paused
     if (flatlineDetectionEnabled && history.length >= flatlineHashrateRepeatCount) {
         const lastNHashrates = history.slice(-flatlineHashrateRepeatCount).map(p => p.hashrate);
         const avg = lastNHashrates.reduce((sum, h) => sum + h, 0) / lastNHashrates.length;
@@ -574,6 +599,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     }
 
     // --- 2. Auto-Optimization ---
+    // This runs even when tuner is paused to periodically optimize settings
     if (autoOptimizeEnabled && tuningState.current.cycleCount > 0 && tuningState.current.cycleCount % autoOptimizeTriggerCycles === 0) {
         const { settings: optimalSettings, reason } = analyzeAndDetermineBestSettings(history);
         if (optimalSettings && (optimalSettings.frequency !== info.frequency || optimalSettings.coreVoltage !== info.coreVoltage)) {
@@ -671,6 +697,14 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     
     let proposedChanges: {frequency?: number, voltage?: number} = {};
 
+    // --- 3. Temperature-Based Adjustments ---
+    // Skip temperature adjustments if tuner is paused (but safety checks above still ran)
+    if (tuningState.current.tunerPaused) {
+        // Update hashrate tracking even when paused
+        tuningState.current.lastHashrate = currentHashrateGHS;
+        return; // Skip temperature-based adjustments while paused
+    }
+
     if (info.vrTemp != null && info.vrTemp > vrTargetTemp) { // VRM HOT
         reason = `VRM Hot (${info.vrTemp.toFixed(1)}°C > ${vrTargetTemp.toFixed(1)}°C)`;
         // Reduce both frequency and voltage for faster cooling
@@ -695,6 +729,11 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
         tuningState.current.tunerPaused = false;
     } else { // CORE IDEAL
         reason = `Core Ideal (${info.temp.toFixed(1)}°C), pausing tuner.`;
+        // Only record pause temp/time when first entering paused state
+        if (!tuningState.current.tunerPaused) {
+            tuningState.current.tempAtPause = info.temp;
+            tuningState.current.pauseTime = Date.now();
+        }
         tuningState.current.tunerPaused = true;
         proposedChanges = {}; // No changes
     }
@@ -763,6 +802,8 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
         previousFrequency: 0,
         previousVoltage: 0,
         previousErrorCount: state.info?.hashrateMonitor?.asics[0]?.errorCount || 0,
+        tempAtPause: 0,
+        pauseTime: 0,
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minerConfig.ip]);

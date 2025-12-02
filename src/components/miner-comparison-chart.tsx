@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useMemo, useCallback, memo, useRef, useEffect } from 'react';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import type { MinerDataPoint, MinerConfig, MinerState } from '@/lib/types';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis, Bar, BarChart, ResponsiveContainer } from 'recharts';
@@ -16,6 +16,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type CompareMetric = 'hashrate' | 'temperature' | 'power' | 'efficiency';
+type ViewMode = 'snapshot' | 'timeline';
 
 interface MinerComparisonChartProps {
   miners: MinerConfig[];
@@ -25,6 +26,8 @@ interface MinerComparisonChartProps {
   onSelectedMinersChange?: (miners: string[]) => void;
   compareMetric?: CompareMetric;
   onCompareMetricChange?: (metric: CompareMetric) => void;
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
 }
 
 // Generate distinct colors for each miner
@@ -48,18 +51,37 @@ export const MinerComparisonChart = memo(function MinerComparisonChart({
   onSelectedMinersChange,
   compareMetric: controlledCompareMetric,
   onCompareMetricChange,
+  viewMode: controlledViewMode,
+  onViewModeChange,
 }: MinerComparisonChartProps) {
   // Use internal state for uncontrolled mode
   const [internalSelectedMiners, setInternalSelectedMiners] = useState<string[]>(() => {
     return miners.slice(0, Math.min(3, miners.length)).map(m => m.ip);
   });
   const [internalCompareMetric, setInternalCompareMetric] = useState<CompareMetric>('hashrate');
+  const [internalViewMode, setInternalViewMode] = useState<ViewMode>('snapshot');
 
   // Use controlled state if provided, otherwise use internal state
   const selectedMiners = controlledSelectedMiners ?? internalSelectedMiners;
   const setSelectedMiners = onSelectedMinersChange ?? setInternalSelectedMiners;
   const compareMetric = controlledCompareMetric ?? internalCompareMetric;
   const setCompareMetric = onCompareMetricChange ?? setInternalCompareMetric;
+  const viewMode = controlledViewMode ?? internalViewMode;
+  const setViewMode = onViewModeChange ?? setInternalViewMode;
+
+  // Track if this is the initial render to only animate once
+  const hasAnimatedRef = useRef(false);
+  const isAnimationActive = !hasAnimatedRef.current;
+
+  useEffect(() => {
+    // After first render, disable future animations
+    if (!hasAnimatedRef.current) {
+      const timer = setTimeout(() => {
+        hasAnimatedRef.current = true;
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Filter out any selected miners that no longer exist (in case miners are removed)
   const validSelectedMiners = useMemo(() => {
@@ -257,7 +279,7 @@ export const MinerComparisonChart = memo(function MinerComparisonChart({
       </div>
 
       {validSelectedMiners.length > 0 ? (
-        <Tabs defaultValue="snapshot" className="w-full">
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)} className="w-full">
           <TabsList>
             <TabsTrigger value="snapshot">Current Snapshot</TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
@@ -288,6 +310,7 @@ export const MinerComparisonChart = memo(function MinerComparisonChart({
                     dataKey="value"
                     fill="currentColor"
                     radius={[0, 4, 4, 0]}
+                    isAnimationActive={false}
                     // @ts-ignore - recharts types don't include this but it works
                     shape={(props: any) => {
                       const { x, y, width, height, payload } = props;
@@ -373,6 +396,7 @@ export const MinerComparisonChart = memo(function MinerComparisonChart({
                       strokeWidth={2}
                       dot={false}
                       activeDot={{ r: 4 }}
+                      isAnimationActive={isAnimationActive}
                       animationDuration={300}
                       animationEasing="ease-out"
                     />

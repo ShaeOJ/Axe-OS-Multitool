@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from '@/components/theme-provider';
 import { ParticleNetwork } from '@/components/particle-network';
+import { UpdateBanner } from '@/components/update-banner';
 
 export const metadata: Metadata = {
   title: 'AxeOS Live!',
@@ -29,6 +30,7 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
         >
+          <UpdateBanner />
           <ParticleNetwork />
           <div className="relative z-10">
             {children}

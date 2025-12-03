@@ -327,7 +327,13 @@ export class MinerBenchmark {
   // ============================================
 
   private async fetchDeviceInfo(): Promise<void> {
-    const info = await getMinerData(this.ip);
+    let info: MinerInfo;
+    try {
+      info = await getMinerData(this.ip);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Failed to connect to miner at ${this.ip}: ${message}`);
+    }
 
     this.originalVoltage = info.coreVoltage ?? this.config.defaultVoltage;
     this.originalFrequency = info.frequency ?? this.config.defaultFrequency;

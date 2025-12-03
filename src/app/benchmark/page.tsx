@@ -227,7 +227,9 @@ export default function BenchmarkPage() {
     try {
       await benchmark.start(initialVoltage, initialFrequency);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      console.error('[Benchmark] Start error:', err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(errorMessage || 'Failed to start benchmark - check miner connection');
       setIsRunning(false);
     }
   };

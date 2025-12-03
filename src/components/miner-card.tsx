@@ -1032,7 +1032,19 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     : '';
     
   const handleTunerSettingChange = (key: keyof AutoTunerSettings, value: string | boolean) => {
-    const newTunerSettings = { ...tunerSettings, [key]: typeof value === 'string' ? parseFloat(value) : value };
+    let parsedValue: string | number | boolean = value;
+
+    // Handle string values - check if it's a number or a string enum
+    if (typeof value === 'string') {
+      // benchmarkProfileMode is a string enum, not a number
+      if (key === 'benchmarkProfileMode') {
+        parsedValue = value;
+      } else {
+        parsedValue = parseFloat(value);
+      }
+    }
+
+    const newTunerSettings = { ...tunerSettings, [key]: parsedValue };
     updateMiner({ ip: minerConfig.ip, tunerSettings: newTunerSettings });
   };
 

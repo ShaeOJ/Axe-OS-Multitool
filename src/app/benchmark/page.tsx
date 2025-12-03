@@ -29,7 +29,8 @@ import {
   FileCheck,
 } from 'lucide-react';
 import Link from 'next/link';
-import type { MinerConfig, MinerState } from '@/lib/types';
+import type { MinerConfig, MinerState, MinerInfo } from '@/lib/types';
+import { getMinerData } from '@/lib/tauri-api';
 import {
   MinerBenchmark,
   BENCHMARK_CONFIG,
@@ -81,10 +82,13 @@ export default function BenchmarkPage() {
   const [existingProfile, setExistingProfile] = useState<BenchmarkProfile | null>(null);
   const [profileSaved, setProfileSaved] = useState(false);
 
+  // Direct miner info for preselected miners (when event system doesn't work)
+  const [directMinerInfo, setDirectMinerInfo] = useState<MinerInfo | null>(null);
+
   // Benchmark instance ref
   const benchmarkRef = useRef<MinerBenchmark | null>(null);
 
-  // Check for miner query parameter on mount
+  // Check for miner query parameter on mount and fetch miner data directly
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -92,6 +96,19 @@ export default function BenchmarkPage() {
       if (minerIp) {
         setPreselectedMiner(minerIp);
         setSelectedMiner(minerIp);
+
+        // Fetch miner data directly since event system between windows may not work
+        getMinerData(minerIp)
+          .then((info) => {
+            setDirectMinerInfo(info);
+            setIsConnected(true);
+            // Set initial values from direct fetch
+            if (info.coreVoltage) setInitialVoltage(info.coreVoltage);
+            if (info.frequency) setInitialFrequency(info.frequency);
+          })
+          .catch((err) => {
+            console.error('Failed to fetch miner data directly:', err);
+          });
       }
     }
   }, []);
@@ -234,8 +251,8 @@ export default function BenchmarkPage() {
     setProfileSaved(true);
   };
 
-  // Get selected miner info
-  const selectedMinerInfo = selectedMiner && data ? data.minerStates[selectedMiner]?.info : null;
+  // Get selected miner info - use direct fetch as fallback for preselected miners
+  const selectedMinerInfo = (selectedMiner && data ? data.minerStates[selectedMiner]?.info : null) || directMinerInfo;
   const selectedMinerConfig = selectedMiner && data ? data.miners.find(m => m.ip === selectedMiner) : null;
 
   // Detect if selected miner is a multi-chip 12V device

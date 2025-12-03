@@ -29,7 +29,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ShareAnimation } from './share-animation';
-import { getMinerData, restartMiner as restartMinerTauri, updateMinerSettings, openBenchmarkWindow } from '@/lib/tauri-api';
+import { getMinerData, restartMiner as restartMinerTauri, updateMinerSettings, openToolsWindow } from '@/lib/tauri-api';
 import { getTuningPreset, getTuningWarning, supportsTuning, type TuningCapability } from '@/lib/asic-presets';
 import { getDeviceOptimizedSettings } from '@/lib/default-settings';
 import { listen } from '@tauri-apps/api/event';
@@ -1247,13 +1247,13 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                                   </div>
                               </DialogContent>
                           </Dialog>
-                          {/* Benchmark Button */}
+                          {/* Tools/Benchmark Button */}
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6"
-                            onClick={() => openBenchmarkWindow(minerConfig.ip)}
-                            title="Open Benchmark Tool"
+                            onClick={() => openToolsWindow()}
+                            title="Open Tools & Benchmark"
                           >
                             <Activity className="h-4 w-4" />
                           </Button>

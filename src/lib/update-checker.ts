@@ -10,7 +10,7 @@ const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_RE
 const RELEASES_URL = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
 
 // Current app version - should match tauri.conf.json
-export const APP_VERSION = '1.5.0';
+export const APP_VERSION = '1.6.3';
 
 export interface ReleaseInfo {
   version: string;

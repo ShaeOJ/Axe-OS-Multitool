@@ -194,7 +194,7 @@ export function createProfileFromSummary(
  */
 export function getTargetSettingsFromProfile(
   profile: BenchmarkProfile,
-  mode: 'hashrate' | 'efficiency' | 'custom'
+  mode: 'hashrate' | 'efficiency' | 'overclock'
 ): { frequency: number; voltage: number } | null {
   if (mode === 'hashrate' && profile.bestHashrate) {
     return {
@@ -210,7 +210,15 @@ export function getTargetSettingsFromProfile(
     };
   }
 
-  // For custom mode, return best hashrate as default
+  // Overclock mode uses bestHashrate (overclock benchmark finds max stable within safe temps)
+  if (mode === 'overclock' && profile.bestHashrate) {
+    return {
+      frequency: profile.bestHashrate.frequency,
+      voltage: profile.bestHashrate.voltage,
+    };
+  }
+
+  // Fallback: return best hashrate if available
   if (profile.bestHashrate) {
     return {
       frequency: profile.bestHashrate.frequency,

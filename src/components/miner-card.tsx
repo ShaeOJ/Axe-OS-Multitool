@@ -1218,6 +1218,11 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
 
                                       // Special handling for benchmarkProfileMode dropdown
                                       if (key === 'benchmarkProfileMode') {
+                                        const modeLabels: Record<string, string> = {
+                                          'hashrate': 'Max Hashrate',
+                                          'efficiency': 'Best Efficiency (J/TH)',
+                                          'overclock': 'Overclock (Safe Temps)',
+                                        };
                                         return (
                                           <div key={key} className="space-y-1">
                                             <Label htmlFor={`${key}-${minerConfig.ip}`} className="text-xs">{label}</Label>
@@ -1227,11 +1232,14 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                                               disabled={!tunerSettings.useBenchmarkProfile}
                                             >
                                               <SelectTrigger id={`${key}-${minerConfig.ip}`} className="h-8 text-sm">
-                                                <SelectValue placeholder="Select mode..." />
+                                                <SelectValue>
+                                                  {modeLabels[value as string] || 'Select mode...'}
+                                                </SelectValue>
                                               </SelectTrigger>
                                               <SelectContent>
                                                 <SelectItem value="hashrate">Max Hashrate</SelectItem>
                                                 <SelectItem value="efficiency">Best Efficiency (J/TH)</SelectItem>
+                                                <SelectItem value="overclock">Overclock (Safe Temps)</SelectItem>
                                               </SelectContent>
                                             </Select>
                                           </div>

@@ -114,7 +114,7 @@ export const ASIC_PROFILES: ASICProfile[] = [
     extremeMaxFrequency: 1000,   // Requires custom cooling/immersion
 
     minVoltage: 1050,
-    maxVoltage: 1300,
+    maxVoltage: 1350,            // Safe max for devices with adequate cooling
     extremeMaxVoltage: 1450,     // Extreme risk
 
     // Temperature targets
@@ -192,8 +192,8 @@ export const ASIC_PROFILES: ASICProfile[] = [
     extremeMaxFrequency: 700,    // Risky
 
     minVoltage: 1050,
-    maxVoltage: 1300,            // Lucky Miner already ships at 1300
-    extremeMaxVoltage: 1350,
+    maxVoltage: 1350,            // Safe with adequate cooling, Lucky Miner ships at 1300
+    extremeMaxVoltage: 1400,
 
     // Temperature targets
     targetTemp: 58,
@@ -265,7 +265,7 @@ export const DEVICE_PROFILES: DeviceProfile[] = [
       minFrequency: 500,
       maxFrequency: 750,         // RSP-350-12 PSU level
       minVoltage: 1050,
-      maxVoltage: 1250,          // Higher voltages need upgraded PSU
+      maxVoltage: 1350,          // Can handle up to 1350mV with adequate PSU
       targetTemp: 62,
       vrTargetTemp: 70,
     },

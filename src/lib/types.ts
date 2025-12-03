@@ -148,7 +148,7 @@ export type AutoTunerSettings = {
   verificationWaitSeconds: number; // Time to wait before verifying hashrate changes
   // Benchmark profile integration
   useBenchmarkProfile: boolean; // Whether to use saved benchmark results
-  benchmarkProfileMode: 'hashrate' | 'efficiency' | 'custom'; // Which profile to target
+  benchmarkProfileMode: 'hashrate' | 'efficiency' | 'overclock'; // Which profile to target
 };
 
 // Saved benchmark result for a specific miner

@@ -172,10 +172,12 @@ export default function BenchmarkPage() {
 
   // Start benchmark
   const handleStart = async () => {
-    if (!selectedMiner || !data) return;
+    if (!selectedMiner) return;
 
-    const miner = data.miners.find(m => m.ip === selectedMiner);
-    if (!miner) return;
+    // When preselected from miner card, we may not have full data yet
+    // Use the IP directly in that case
+    const miner = data?.miners.find(m => m.ip === selectedMiner);
+    const minerName = miner?.name || selectedMinerConfig?.name || selectedMiner;
 
     setIsRunning(true);
     setError(null);
@@ -186,7 +188,7 @@ export default function BenchmarkPage() {
 
     const benchmark = new MinerBenchmark(
       selectedMiner,
-      miner.name || selectedMiner,
+      minerName,
       benchmarkMode,
       {
         onProgress: (p) => setProgress(p),
@@ -439,7 +441,7 @@ export default function BenchmarkPage() {
                   <Button
                     className="w-full"
                     onClick={handleStart}
-                    disabled={!selectedMiner || availableMiners.length === 0}
+                    disabled={!selectedMiner || (!preselectedMiner && availableMiners.length === 0)}
                   >
                     <Play className="mr-2 h-4 w-4" />
                     Start Benchmark

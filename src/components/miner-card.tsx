@@ -28,6 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from './ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ShareAnimation } from './share-animation';
 import { getMinerData, restartMiner as restartMinerTauri, updateMinerSettings, openToolsWindow } from '@/lib/tauri-api';
 import { getTuningPreset, getTuningWarning, supportsTuning, type TuningCapability } from '@/lib/asic-presets';
@@ -1214,6 +1215,29 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                                   {Object.entries(tunerSettings).map(([key, value]) => {
                                       const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                                       const isSwitch = typeof value === 'boolean';
+
+                                      // Special handling for benchmarkProfileMode dropdown
+                                      if (key === 'benchmarkProfileMode') {
+                                        return (
+                                          <div key={key} className="space-y-1">
+                                            <Label htmlFor={`${key}-${minerConfig.ip}`} className="text-xs">{label}</Label>
+                                            <Select
+                                              value={value as string}
+                                              onValueChange={(newValue) => handleTunerSettingChange(key as keyof AutoTunerSettings, newValue)}
+                                              disabled={!tunerSettings.useBenchmarkProfile}
+                                            >
+                                              <SelectTrigger id={`${key}-${minerConfig.ip}`} className="h-8 text-sm">
+                                                <SelectValue placeholder="Select mode..." />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="hashrate">Max Hashrate</SelectItem>
+                                                <SelectItem value="efficiency">Best Efficiency (J/TH)</SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                          </div>
+                                        );
+                                      }
+
                                       if (isSwitch) {
                                         return (
                                           <div key={key} className="flex items-center justify-between col-span-2 space-y-1">

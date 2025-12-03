@@ -1223,6 +1223,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                                           'efficiency': 'Best Efficiency (J/TH)',
                                           'overclock': 'Overclock (Safe Temps)',
                                         };
+                                        const currentLabel = modeLabels[value as string] || 'Select mode...';
                                         return (
                                           <div key={key} className="space-y-1">
                                             <Label htmlFor={`${key}-${minerConfig.ip}`} className="text-xs">{label}</Label>
@@ -1232,9 +1233,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                                               disabled={!tunerSettings.useBenchmarkProfile}
                                             >
                                               <SelectTrigger id={`${key}-${minerConfig.ip}`} className="h-8 text-sm">
-                                                <SelectValue>
-                                                  {modeLabels[value as string] || 'Select mode...'}
-                                                </SelectValue>
+                                                <span>{currentLabel}</span>
                                               </SelectTrigger>
                                               <SelectContent>
                                                 <SelectItem value="hashrate">Max Hashrate</SelectItem>

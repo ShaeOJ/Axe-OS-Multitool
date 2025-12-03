@@ -12,23 +12,11 @@ import type { MinerConfig, MinerInfo, MinerState } from './types';
 // Check for __TAURI_INTERNALS__ which is more reliable than __TAURI__
 const isTauri = () => {
   if (typeof window === 'undefined') {
-    console.log('[Tauri API] Not in browser environment');
     return false;
   }
 
   // Check multiple Tauri globals for better detection
-  const hasTauri = '__TAURI__' in window;
-  const hasTauriInternals = '__TAURI_INTERNALS__' in window;
-  const result = hasTauri || hasTauriInternals;
-
-  console.log('[Tauri API] Detection check:', {
-    result,
-    hasTauri,
-    hasTauriInternals,
-    windowKeys: Object.keys(window).filter(k => k.includes('TAURI'))
-  });
-
-  return result;
+  return '__TAURI__' in window || '__TAURI_INTERNALS__' in window;
 };
 
 /**
@@ -58,17 +46,12 @@ interface UpdateSettingsResponse {
  */
 export async function getMinerData(ip: string): Promise<MinerInfo> {
   if (isTauri()) {
-    console.log('[Tauri API] Using Tauri invoke for getMinerData:', ip);
     try {
-      const result = await invoke<MinerInfo>('get_miner_data', { ip });
-      console.log('[Tauri API] Success:', result);
-      return result;
+      return await invoke<MinerInfo>('get_miner_data', { ip });
     } catch (error) {
-      console.error('[Tauri API] Error:', error);
       throw new Error(typeof error === 'string' ? error : 'Failed to fetch miner data');
     }
   } else {
-    console.log('[Tauri API] Using fetch API route for getMinerData:', ip);
     // Fallback to Next.js API route for development
     const response = await fetch(`/api/miner/${ip}`);
     if (!response.ok) {

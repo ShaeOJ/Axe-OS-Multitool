@@ -25,7 +25,6 @@ export async function initBenchmarkEvents(): Promise<void> {
 async function emitBenchmarkStarted(minerIp: string): Promise<void> {
   if (emitFn) {
     await emitFn('benchmark-started', { minerIp });
-    console.log('[Benchmark] Emitted benchmark-started for', minerIp);
   }
 }
 
@@ -33,7 +32,6 @@ async function emitBenchmarkStarted(minerIp: string): Promise<void> {
 async function emitBenchmarkStopped(minerIp: string): Promise<void> {
   if (emitFn) {
     await emitFn('benchmark-stopped', { minerIp });
-    console.log('[Benchmark] Emitted benchmark-stopped for', minerIp);
   }
 }
 
@@ -225,6 +223,11 @@ export class MinerBenchmark {
 
   private startTime = 0;
 
+  // Throttle progress updates to reduce UI overhead
+  private lastProgressUpdate = 0;
+  private readonly PROGRESS_THROTTLE_MS = 1000; // Max 1 update per second
+  private pendingProgress: BenchmarkProgress | null = null;
+
   constructor(
     ip: string,
     name: string,
@@ -352,16 +355,6 @@ export class MinerBenchmark {
     // Calculate total cores (smallCoreCount is per chip)
     const totalCores = this.smallCoreCount * this.asicCount;
 
-    // Log device detection
-    console.log('[Benchmark] Device detected:', {
-      hostname: info.hostname,
-      asicModel: info.ASICModel,
-      profileName: this.deviceProfileName,
-      chipCount: this.asicCount,
-      coresPerChip: this.smallCoreCount,
-      totalCores,
-      tuningCapability: this.tuningCapability,
-    });
 
     // Update config limits based on device profile
     if (tuningPreset.maxFreq) {
@@ -386,12 +379,6 @@ export class MinerBenchmark {
       this.config.maxPower = this.config.maxPower12V;
       this.config.minInputVoltage = this.config.minInputVoltage12V;
       this.config.maxInputVoltage = this.config.maxInputVoltage12V;
-
-      console.log('[Benchmark] Multi-chip device detected, using 12V limits:', {
-        maxPower: this.config.maxPower,
-        minInputVoltage: this.config.minInputVoltage,
-        maxInputVoltage: this.config.maxInputVoltage,
-      });
     }
 
     // Initialize test values with original settings
@@ -495,6 +482,7 @@ export class MinerBenchmark {
       }
 
       this.results.push(result);
+      this.flushProgress(); // Ensure UI is up to date before iteration complete
       this.callbacks.onIterationComplete(result);
 
       if (result.hashrateWithinTolerance) {
@@ -634,6 +622,7 @@ export class MinerBenchmark {
         }
 
         this.results.push(result);
+        this.flushProgress(); // Ensure UI is up to date before iteration complete
         this.callbacks.onIterationComplete(result);
 
         // Check if temperature is within target range
@@ -812,7 +801,6 @@ export class MinerBenchmark {
         currentTemp: sample.chipTemp,
         currentPower: sample.power,
         percentComplete: ((i + 1) / totalSamples) * 100,
-        samples: [...this.currentSamples],
       });
 
       // Sleep before next sample (except on last iteration)
@@ -829,25 +817,25 @@ export class MinerBenchmark {
     try {
       const info = await getMinerData(this.ip);
 
-      // Safety checks
+      // Safety checks - force update on limit violations
       if (info.temp != null && info.temp >= this.config.maxChipTemp) {
-        this.updateProgress({ message: `Chip temp ${info.temp}°C exceeded limit!` });
+        this.updateProgress({ message: `Chip temp ${info.temp}°C exceeded limit!` }, true);
         return null;
       }
       if (info.vrTemp != null && info.vrTemp >= this.config.maxVrTemp) {
-        this.updateProgress({ message: `VR temp ${info.vrTemp}°C exceeded limit!` });
+        this.updateProgress({ message: `VR temp ${info.vrTemp}°C exceeded limit!` }, true);
         return null;
       }
       if (info.power != null && info.power > this.config.maxPower) {
-        this.updateProgress({ message: `Power ${info.power}W exceeded limit!` });
+        this.updateProgress({ message: `Power ${info.power}W exceeded limit!` }, true);
         return null;
       }
       if (info.voltage != null && info.voltage < this.config.minInputVoltage) {
-        this.updateProgress({ message: `Input voltage ${info.voltage}mV too low!` });
+        this.updateProgress({ message: `Input voltage ${info.voltage}mV too low!` }, true);
         return null;
       }
       if (info.voltage != null && info.voltage > this.config.maxInputVoltage) {
-        this.updateProgress({ message: `Input voltage ${info.voltage}mV too high!` });
+        this.updateProgress({ message: `Input voltage ${info.voltage}mV too high!` }, true);
         return null;
       }
 
@@ -862,7 +850,7 @@ export class MinerBenchmark {
         coreVoltage: voltage,
       };
     } catch (error) {
-      this.updateProgress({ message: `Error fetching data: ${error}` });
+      this.updateProgress({ message: `Error fetching data: ${error}` }, true);
       return null;
     }
   }
@@ -998,7 +986,7 @@ export class MinerBenchmark {
     return 'completed';
   }
 
-  private updateProgress(partial: Partial<BenchmarkProgress>): void {
+  private updateProgress(partial: Partial<BenchmarkProgress>, force = false): void {
     // Update tracked voltage/frequency if provided
     if (partial.currentVoltage !== undefined) {
       this.testVoltage = partial.currentVoltage;
@@ -1025,9 +1013,30 @@ export class MinerBenchmark {
       currentTemp: partial.currentTemp ?? 0,
       currentPower: partial.currentPower ?? 0,
       message: this.lastMessage,
-      samples: partial.samples ?? [],
+      // Only include samples count, not the full array - UI can track samples separately
+      samples: [],
     };
+
+    // Throttle progress updates unless forced (for important state changes)
+    const now = Date.now();
+    if (!force && now - this.lastProgressUpdate < this.PROGRESS_THROTTLE_MS) {
+      // Store pending progress to send on next allowed update
+      this.pendingProgress = progress;
+      return;
+    }
+
+    this.lastProgressUpdate = now;
+    this.pendingProgress = null;
     this.callbacks.onProgress(progress);
+  }
+
+  // Flush any pending progress update (call before important events)
+  private flushProgress(): void {
+    if (this.pendingProgress) {
+      this.callbacks.onProgress(this.pendingProgress);
+      this.pendingProgress = null;
+      this.lastProgressUpdate = Date.now();
+    }
   }
 
   private sleep(ms: number): Promise<void> {

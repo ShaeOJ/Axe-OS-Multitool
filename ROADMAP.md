@@ -1,6 +1,6 @@
 # AxeOS Live! Feature Roadmap
 
-## Current Version: 1.4.0
+## Current Version: 1.5.0
 
 ### Completed Features (v1.2.0)
 - [x] Dynamic hashrate gauge scaling for high-power miners (up to 10+ TH/s)
@@ -29,6 +29,41 @@
   - [x] Total daily cost in global stats bar
   - [x] Efficiency metrics (J/TH) per miner
   - [x] Settings persistence
+- [x] **Update Notifications**
+  - [x] Automatic GitHub release checking
+  - [x] Update banner with release notes preview
+  - [x] Settings > About tab with version info
+  - [x] Manual "Check for Updates" button
+- [x] **Auto-Tuner Reliability Improvements**
+  - [x] Hybrid pause mode - safety checks continue while paused
+  - [x] Ambient temperature spike detection
+  - [x] Fixed idle tuner bug after ~1 hour
+
+### Completed Features (v1.5.0)
+- [x] **Hashrate Benchmark Tool**
+  - [x] Quick benchmark - Test current settings stability
+  - [x] Full optimization - Automated search for best voltage/frequency
+  - [x] Efficiency finder - Find the most efficient (J/TH) settings
+  - [x] Visual progress - Real-time display during benchmarking
+  - [x] Safety cutoffs - Temperature, power, voltage limits
+  - [x] Results table - Top 5 by hashrate and efficiency
+  - [x] Auto-apply best settings found
+
+### Completed Features (Previously Implemented)
+- [x] **Historical Data Persistence**
+  - [x] SQLite database for storing mining history
+  - [x] Configurable retention period (7 days default)
+  - [x] Historical charts (24h, 7d, 30d views)
+  - [x] Analytics page with statistics
+- [x] **Profitability Calculator**
+  - [x] Fetch current BTC price (CoinGecko API)
+  - [x] Fetch current network difficulty
+  - [x] Calculate estimated daily/weekly/monthly earnings
+  - [x] Show profitability after electricity costs
+- [x] **Miner Auto-Discovery**
+  - [x] Scan local network for miners
+  - [x] Detect common miner ports/endpoints
+  - [x] One-click add discovered miners
 
 ---
 
@@ -36,54 +71,7 @@
 
 ### High Priority - High Impact
 
-#### 1. Notifications/Alerts System
-- [x] In-app toast notifications (already have toast system)
-- [ ] System tray notifications (Tauri native) - future enhancement
-- [x] Configurable alerts:
-  - [x] Miner offline
-  - [x] Temperature threshold exceeded
-  - [x] Hashrate drop (percentage-based)
-  - [x] Block found celebration
-- [x] Sound alerts (optional)
-- **Status**: Complete (v1.4.0)
-- **Complexity**: Medium
-
-#### 2. Historical Data Persistence
-- [ ] SQLite database for storing mining history
-- [ ] Configurable retention period (7 days, 30 days, etc.)
-- [ ] Historical charts (24h, 7d, 30d views)
-- [ ] Statistics: uptime %, average hashrate, etc.
-- **Status**: Not started
-- **Complexity**: High
-
-#### 3. Power Consumption & Cost Tracking
-- [x] Input electricity rate ($/kWh)
-- [ ] Daily/weekly/monthly power usage stats - partial (daily done)
-- [x] Cost estimation per miner and total
-- [x] Efficiency metrics (J/TH)
-- **Status**: Complete (v1.4.0)
-- **Complexity**: Medium
-
-#### 4. Profitability Calculator
-- [ ] Fetch current BTC price (API integration)
-- [ ] Fetch current network difficulty
-- [ ] Calculate estimated daily/weekly/monthly earnings
-- [ ] Show profitability after electricity costs
-- **Status**: Not started
-- **Complexity**: Medium
-
-#### 5. Miner Auto-Discovery
-- [ ] Scan local network for miners
-- [ ] Detect common miner ports/endpoints
-- [ ] One-click add discovered miners
-- **Status**: Not started
-- **Complexity**: Medium-High
-
----
-
-### Medium Priority - Quality of Life
-
-#### 6. Bulk Actions
+#### 1. Bulk Actions
 - [ ] Select multiple miners
 - [ ] Apply frequency/voltage to all selected
 - [ ] Enable/disable auto-tuner on multiple
@@ -91,7 +79,7 @@
 - **Status**: Not started
 - **Complexity**: Medium
 
-#### 7. Miner Groups/Tags
+#### 2. Miner Groups/Tags
 - [ ] Create custom groups (e.g., "Office", "Garage")
 - [ ] Color-coded tags
 - [ ] Filter dashboard by group
@@ -99,7 +87,11 @@
 - **Status**: Not started
 - **Complexity**: Medium
 
-#### 8. Export Data
+---
+
+### Medium Priority - Quality of Life
+
+#### 3. Export Data (Enhanced)
 - [x] Export current stats to CSV
 - [ ] Export historical data to CSV/JSON
 - [x] Export miner configurations (via Backup)
@@ -107,15 +99,7 @@
 - **Status**: Partially complete (v1.3.0)
 - **Complexity**: Low
 
-#### 9. Backup/Restore Settings
-- [x] Export all miner configs to JSON
-- [x] Export tuner settings
-- [x] Import/restore from backup file
-- [ ] Cloud backup option (future)
-- **Status**: Complete (v1.3.0)
-- **Complexity**: Low
-
-#### 10. Custom Dashboard Layouts
+#### 4. Custom Dashboard Layouts
 - [ ] Drag-and-drop card arrangement
 - [ ] Configurable card size (compact/normal/expanded)
 - [ ] Choose which stats to display
@@ -123,19 +107,18 @@
 - **Status**: Not started
 - **Complexity**: High
 
+#### 5. System Tray Notifications
+- [ ] Native system tray notifications (Tauri)
+- [ ] Background monitoring when minimized
+- [ ] Tray icon with quick status
+- **Status**: Not started
+- **Complexity**: Medium
+
 ---
 
 ### Lower Priority - Nice to Have
 
-#### 11. Firmware Update Checker
-- [x] Check AxeOS GitHub releases
-- [x] Compare with miner's current version
-- [x] Alert when updates available
-- [x] Link to update instructions (GitHub release page)
-- **Status**: Complete (v1.3.0)
-- **Complexity**: Low
-
-#### 12. Multi-language Support (i18n)
+#### 6. Multi-language Support (i18n)
 - [ ] Extract all strings to translation files
 - [ ] English (default)
 - [ ] Spanish
@@ -145,19 +128,25 @@
 - **Status**: Not started
 - **Complexity**: Medium
 
-#### 13. WebSocket Support
+#### 7. WebSocket Support
 - [ ] Real-time updates (if miners support it)
 - [ ] Reduce polling overhead
 - [ ] Instant status changes
 - **Status**: Not started
 - **Complexity**: High (depends on miner firmware)
 
-#### 14. Dark/Light Theme Scheduling
+#### 8. Dark/Light Theme Scheduling
 - [ ] Auto-switch based on time
 - [ ] Follow system preference
 - [ ] Custom schedule
 - **Status**: Not started
 - **Complexity**: Low
+
+#### 9. Cloud Backup
+- [ ] Optional cloud sync for settings
+- [ ] Cross-device configuration sharing
+- **Status**: Not started
+- **Complexity**: High
 
 ---
 
@@ -167,7 +156,9 @@
 - Nothing in progress
 
 ### Next Up
-- TBD (user to choose)
+- Bulk Actions
+- Miner Groups/Tags
+- Benchmark Results History
 
 ---
 
@@ -200,6 +191,31 @@
   - Total daily cost in global stats bar
   - J/TH efficiency display
 - Ready for v1.4.0 release
+
+### Session 4 (2025-12-02)
+- **Auto-Tuner Reliability Fixes**
+  - Fixed tuner going idle after ~1 hour when temp stabilized
+  - Implemented hybrid pause mode - safety checks continue while paused
+  - Added ambient temperature spike detection while paused
+  - Flatline detection and auto-optimization now run regardless of pause state
+- **Update Notifications**
+  - Created update-checker.ts for GitHub releases integration
+  - Created update-banner.tsx with dismissable notification
+  - Added Settings > About tab with version info and manual check
+  - Automatic checks on startup and every 6 hours
+- Released v1.4.0
+
+### Session 5 (2025-12-02)
+- **Hashrate Benchmark Tool**
+  - Created benchmark.ts with full TypeScript port of Python benchmark logic
+  - Created benchmark page with configuration, live progress, and results display
+  - Three benchmark modes: Quick (test current), Optimize (max hashrate), Efficiency (best J/TH)
+  - Real-time progress display with hashrate, temperature, power stats
+  - Safety features: temp limits, power limits, voltage monitoring
+  - Results table showing top 5 by hashrate and efficiency
+  - Auto-applies best settings found after benchmark completes
+  - Added to Tools menu for easy access
+- Released v1.5.0
 
 ---
 

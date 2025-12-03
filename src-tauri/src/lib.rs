@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::time::Duration;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use futures::future::join_all;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -170,6 +170,39 @@ async fn open_tools_window(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+// Command to open benchmark window with larger size
+// Optional miner_ip parameter to pre-select a miner
+#[tauri::command]
+async fn open_benchmark_window(app: AppHandle, miner_ip: Option<String>) -> Result<(), String> {
+    // Check if window already exists
+    if let Some(window) = app.get_webview_window("benchmark") {
+        // Window exists, focus it and emit event to select miner
+        window.set_focus().map_err(|e| e.to_string())?;
+        if let Some(ip) = miner_ip {
+            window.emit("select-miner", ip).map_err(|e| e.to_string())?;
+        }
+        return Ok(());
+    }
+
+    // Create new benchmark window with larger dimensions
+    // Append miner_ip as query parameter if provided
+    let url = match &miner_ip {
+        Some(ip) => WebviewUrl::App(format!("benchmark?miner={}", ip).into()),
+        None => WebviewUrl::App("benchmark".into()),
+    };
+
+    WebviewWindowBuilder::new(&app, "benchmark", url)
+        .title("Hashrate Benchmark - AxeOS Live!")
+        .inner_size(900.0, 800.0)
+        .min_inner_size(700.0, 600.0)
+        .resizable(true)
+        .center()
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 // Command to update miner settings
 #[tauri::command]
 async fn update_miner_settings(ip: String, frequency: u32, core_voltage: u32) -> Result<serde_json::Value, String> {
@@ -328,6 +361,7 @@ pub fn run() {
       open_settings_window,
       close_settings_window,
       open_tools_window,
+      open_benchmark_window,
       scan_network,
       get_local_subnet
     ])

@@ -146,4 +146,64 @@ export type AutoTunerSettings = {
   autoOptimizeTriggerCycles: number;
   efficiencyTolerancePercent: number;
   verificationWaitSeconds: number; // Time to wait before verifying hashrate changes
+  // Benchmark profile integration
+  useBenchmarkProfile: boolean; // Whether to use saved benchmark results
+  benchmarkProfileMode: 'hashrate' | 'efficiency' | 'custom'; // Which profile to target
+};
+
+// Saved benchmark result for a specific miner
+export type BenchmarkProfile = {
+  // Identification
+  minerIp: string;
+  minerName: string;
+  deviceProfile: string; // e.g., "NerdQaxe++", "Bitaxe Gamma"
+  asicModel: string;
+  chipCount: number;
+
+  // Benchmark metadata
+  createdAt: number; // timestamp
+  updatedAt: number; // timestamp
+  benchmarkMode: 'quick' | 'optimize' | 'efficiency' | 'overclock';
+
+  // Best settings for maximum hashrate
+  bestHashrate: {
+    frequency: number;
+    voltage: number;
+    hashrate: number; // GH/s
+    temperature: number; // °C at this setting
+    power: number; // W
+    efficiency: number; // J/TH
+  } | null;
+
+  // Best settings for efficiency
+  bestEfficiency: {
+    frequency: number;
+    voltage: number;
+    hashrate: number;
+    temperature: number;
+    power: number;
+    efficiency: number; // J/TH - lower is better
+  } | null;
+
+  // Safe operating limits discovered during benchmark
+  safeLimits: {
+    maxFrequency: number; // Highest stable frequency found
+    maxVoltage: number; // Highest voltage tested safely
+    maxTemperature: number; // Peak temp observed during testing
+    maxPower: number; // Peak power observed
+  };
+
+  // All tested combinations (for reference/analysis)
+  allResults: Array<{
+    frequency: number;
+    voltage: number;
+    hashrate: number;
+    temperature: number;
+    power: number;
+    efficiency: number;
+    stable: boolean;
+  }>;
+
+  // Notes from benchmark
+  notes?: string;
 };

@@ -272,6 +272,20 @@ export async function openToolsWindow(): Promise<void> {
 }
 
 /**
+ * Open the benchmark window with larger dimensions
+ * @param minerIp Optional miner IP to pre-select
+ */
+export async function openBenchmarkWindow(minerIp?: string): Promise<void> {
+  if (isTauri()) {
+    try {
+      await invoke('open_benchmark_window', { minerIp });
+    } catch (error) {
+      console.error('[Tauri API] Failed to open benchmark window:', error);
+    }
+  }
+}
+
+/**
  * Tools data payload for inter-window communication
  */
 export interface ToolsDataPayload {

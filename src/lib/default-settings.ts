@@ -24,6 +24,9 @@ export const defaultTunerSettings: AutoTunerSettings = {
   autoOptimizeTriggerCycles: 60, // Run every 60 cycles (15 mins if 15s interval)
   efficiencyTolerancePercent: 2.0,
   verificationWaitSeconds: 60, // Wait 60 seconds before checking if hashrate improved
+  // Benchmark profile integration
+  useBenchmarkProfile: false, // Disabled by default until user runs benchmark
+  benchmarkProfileMode: 'hashrate', // Default to targeting best hashrate
 };
 
 /**

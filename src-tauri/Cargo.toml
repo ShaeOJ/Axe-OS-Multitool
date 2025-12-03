@@ -1,8 +1,8 @@
 [package]
 name = "app"
-version = "1.4.0"
-description = "A Tauri App"
-authors = ["you"]
+version = "1.6.0"
+description = "AxeOS Live! - Monitor and manage your AxeOS miners"
+authors = ["Shae Jones Thomson"]
 license = ""
 repository = ""
 edition = "2021"

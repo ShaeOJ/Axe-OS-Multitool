@@ -56,40 +56,38 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'AxeOS Live! ${{ github.ref_name }}'
           releaseBody: |
-            ## What's New in v1.4.0
+            ## What's New in v1.5.0
 
-            ### Update Notifications
-            Never miss an update! The app now automatically checks for new releases and notifies you when updates are available.
+            ### Hashrate Benchmark Tool
+            A powerful new tool to automatically find the optimal voltage and frequency settings for your miners!
 
-            - **Automatic Update Checks** - Checks GitHub releases on startup and every 6 hours
-            - **Update Banner** - Non-intrusive banner at the top of the screen when a new version is available
-            - **Release Notes Preview** - View release notes directly in the app before downloading
-            - **Dismissable** - Dismiss notifications per-version (won't nag you repeatedly)
-            - **Settings > About Tab** - New About tab with version info and manual "Check for Updates" button
-            - **Quick Links** - Easy access to GitHub repo, issues, and releases
+            #### Features
+            - **Quick Benchmark** - Test stability of current settings (~10 minutes)
+            - **Full Optimization** - Automated search for maximum hashrate (30+ minutes)
+            - **Efficiency Mode** - Find the most efficient J/TH settings
+            - **Live Progress** - Real-time display of hashrate, temperature, and power during testing
+            - **Results Table** - Top 5 performers by hashrate and efficiency
+            - **Auto-Apply** - Automatically applies the best settings found
 
-            ### Auto-Tuner Improvements
-            Major reliability improvements to prevent the auto-tuner from going idle.
+            #### Safety Features
+            - Temperature limits (66°C chip, 86°C VR)
+            - Power limit (40W for DC plug safety)
+            - Input voltage monitoring (4.8V - 5.5V)
+            - 90-second stabilization between tests
+            - Graceful stop with best settings applied
 
-            #### Hybrid Pause Mode
-            - **Safety Checks Always Run** - Flatline detection and error monitoring continue even when tuner is paused
-            - **Auto-Optimization Continues** - Periodic efficiency optimization runs regardless of pause state
-            - **Only Temperature Adjustments Pause** - When temp is ideal, only the temp-based adjustments pause
+            #### How It Works
+            1. Go to **Tools > Hashrate Benchmark Tool**
+            2. Select a miner and benchmark mode
+            3. Set starting voltage/frequency (or use current settings)
+            4. Click **Start Benchmark**
+            5. The tool will systematically test combinations and find optimal settings
 
-            #### Ambient Temperature Spike Detection
-            - **Monitors Temperature While Paused** - Detects gradual temperature increases due to ambient conditions
-            - **Auto-Resume on Spike** - If temperature rises 3°C+ from when paused (after 5 minutes), tuner automatically resumes
-            - **Notification** - Toast notification when ambient spike is detected
-            - **Prevents Thermal Creep** - Catches scenarios where room temp increases (AC off, afternoon sun, etc.)
-
-            ### Bug Fixes
-            - Fixed auto-tuner going idle after ~1 hour when temperature stabilized in ideal range
-            - Fixed safety checks (flatline detection) being blocked when tuner was paused
-            - Fixed auto-optimization not running while tuner was paused
+            Based on the popular [Bitaxe-Hashrate-Benchmark](https://github.com/ShaeOJ/Bitaxe-Hashrate-Benchmark) Python tool, now built directly into the app!
 
             ---
 
-            **Full Changelog**: https://github.com/ShaeOJ/Axe-OS-Multitool/compare/v1.3.0...v1.4.0
+            **Full Changelog**: https://github.com/ShaeOJ/Axe-OS-Multitool/compare/v1.4.0...v1.5.0
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

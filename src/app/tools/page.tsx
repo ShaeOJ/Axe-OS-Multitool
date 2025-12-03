@@ -24,7 +24,9 @@ import {
   Zap,
   RotateCcw,
   Wrench,
+  Activity,
 } from 'lucide-react';
+import Link from 'next/link';
 import type { MinerConfig, MinerState, MinerInfo } from '@/lib/types';
 import type { AlertSettings, PowerSettings, AppSettings } from '@/lib/alert-settings';
 import { defaultAppSettings } from '@/lib/alert-settings';
@@ -324,8 +326,28 @@ export default function ToolsPage() {
 
           {/* Tools Tab */}
           <TabsContent value="tools" className="space-y-4">
-            {/* Export & Backup */}
+            {/* Benchmark Tool */}
             <div className="space-y-3">
+              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                Optimization
+              </h4>
+
+              <Link href="/benchmark">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                >
+                  <Activity className="mr-2 h-4 w-4" />
+                  Hashrate Benchmark Tool
+                </Button>
+              </Link>
+              <p className="text-xs text-muted-foreground pl-1">
+                Find optimal voltage and frequency settings for your miners
+              </p>
+            </div>
+
+            {/* Export & Backup */}
+            <div className="space-y-3 pt-4 border-t">
               <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
                 Data Management
               </h4>

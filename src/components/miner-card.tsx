@@ -16,7 +16,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useToast } from '@/hooks/use-toast';
 import type { MinerState, MinerInfo, MinerDataPoint, AutoTunerSettings, MinerConfig } from '@/lib/types';
 import { MinerChart } from './miner-chart';
-import { Zap, Thermometer, Gauge, HeartPulse, Trash2, ChevronDown, AlertCircle, CheckCircle2, Cpu, Hash, Check, X, Server, GitBranch, Settings, Power, Expand, AlertTriangle, Trophy } from 'lucide-react';
+import { Zap, Thermometer, Gauge, HeartPulse, Trash2, ChevronDown, AlertCircle, CheckCircle2, Cpu, Hash, Check, X, Server, GitBranch, Settings, Power, Expand, AlertTriangle, Trophy, Activity } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { cn } from '@/lib/utils';
@@ -29,9 +29,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ShareAnimation } from './share-animation';
-import { getMinerData, restartMiner as restartMinerTauri, updateMinerSettings } from '@/lib/tauri-api';
+import { getMinerData, restartMiner as restartMinerTauri, updateMinerSettings, openBenchmarkWindow } from '@/lib/tauri-api';
 import { getTuningPreset, getTuningWarning, supportsTuning, type TuningCapability } from '@/lib/asic-presets';
 import { getDeviceOptimizedSettings } from '@/lib/default-settings';
+import { listen } from '@tauri-apps/api/event';
+import { getBenchmarkProfile, getTargetSettingsFromProfile } from '@/lib/benchmark-profiles';
 
 
 // New state for advanced tuning logic
@@ -55,6 +57,13 @@ type TuningState = {
     // Ambient temp spike detection while paused
     tempAtPause: number;
     pauseTime: number;
+    // Benchmark mode - completely pause auto-tuner when benchmarking
+    benchmarkActive: boolean;
+    // Benchmark profile integration
+    benchmarkProfileLoaded: boolean;
+    targetFrequency: number | null;
+    targetVoltage: number | null;
+    targetHashrate: number | null;
 };
 
 const setMinerSettings = async (ip: string, frequency: number, coreVoltage: number) => {
@@ -289,6 +298,11 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     previousErrorCount: 0,
     tempAtPause: 0,
     pauseTime: 0,
+    benchmarkActive: false,
+    benchmarkProfileLoaded: false,
+    targetFrequency: null,
+    targetVoltage: null,
+    targetHashrate: null,
   });
 
   const analyzeAndDetermineBestSettings = useCallback((history: MinerDataPoint[]) => {
@@ -394,6 +408,11 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
   }, [minerConfig.ip, minerConfig.name, toast]);
 
   const tuneMiner = useCallback(async (info: MinerInfo, history: MinerDataPoint[]) => {
+    // Skip if benchmark is running on this miner
+    if (tuningState.current.benchmarkActive) {
+        return;
+    }
+
     // Core requirements: temp, frequency, coreVoltage, hashRate
     // vrTemp is optional (NerdAxe devices may not report it)
     if (!tunerSettings.enabled || info.temp == null || info.frequency == null || info.coreVoltage == null || info.hashRate == null) {
@@ -405,6 +424,33 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     if (tuningPreset.capability === 'closed') {
         console.log(`[Auto-Tuner] Skipping ${minerConfig.name || minerConfig.ip}: Closed firmware device (${tuningPreset.profileName})`);
         return;
+    }
+
+    // Load benchmark profile if enabled and not already loaded
+    if (tunerSettings.useBenchmarkProfile && !tuningState.current.benchmarkProfileLoaded) {
+      try {
+        const profile = await getBenchmarkProfile(minerConfig.ip);
+        if (profile) {
+          const targetSettings = getTargetSettingsFromProfile(profile, tunerSettings.benchmarkProfileMode);
+          if (targetSettings) {
+            tuningState.current.targetFrequency = targetSettings.frequency;
+            tuningState.current.targetVoltage = targetSettings.voltage;
+
+            // Get expected hashrate from the profile
+            const targetResult = tunerSettings.benchmarkProfileMode === 'efficiency'
+              ? profile.bestEfficiency
+              : profile.bestHashrate;
+            tuningState.current.targetHashrate = targetResult?.hashrate ?? null;
+
+            console.log(`[Auto-Tuner] Loaded benchmark profile for ${minerConfig.name || minerConfig.ip}:`,
+              `Target ${targetSettings.frequency}MHz @ ${targetSettings.voltage}mV`);
+          }
+        }
+        tuningState.current.benchmarkProfileLoaded = true;
+      } catch (error) {
+        console.error('[Auto-Tuner] Failed to load benchmark profile:', error);
+        tuningState.current.benchmarkProfileLoaded = true; // Don't retry on error
+      }
     }
 
     const now = Date.now();
@@ -725,7 +771,40 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
         }
     } else if (info.temp < targetTemp - 2) { // CORE COOL
         reason = `Core Cool (${info.temp.toFixed(1)}°C < ${(targetTemp-2).toFixed(1)}°C)`;
-        proposedChanges = handleCoolOrIdeal();
+
+        // If benchmark profile is active and we have targets, move towards them
+        if (tunerSettings.useBenchmarkProfile &&
+            tuningState.current.targetFrequency !== null &&
+            tuningState.current.targetVoltage !== null) {
+
+          const targetFreq = tuningState.current.targetFrequency;
+          const targetVolt = tuningState.current.targetVoltage;
+
+          // Check if we're already at target
+          if (info.frequency === targetFreq && info.coreVoltage === targetVolt) {
+            reason = `At benchmark target (${targetFreq}MHz @ ${targetVolt}mV)`;
+            proposedChanges = {}; // At target, no changes
+          } else {
+            // Move towards target settings
+            if (info.frequency < targetFreq && new_freq + tempFreqStepUp <= maxFreq) {
+              proposedChanges.frequency = Math.min(new_freq + tempFreqStepUp, targetFreq);
+            } else if (info.frequency > targetFreq && new_freq - tempFreqStepDown >= minFreq) {
+              proposedChanges.frequency = Math.max(new_freq - tempFreqStepDown, targetFreq);
+            }
+
+            if (info.coreVoltage < targetVolt && new_volt + tempVoltStepUp <= maxVolt) {
+              proposedChanges.voltage = Math.min(new_volt + tempVoltStepUp, targetVolt);
+            } else if (info.coreVoltage > targetVolt && new_volt - tempVoltStepDown >= minVolt) {
+              proposedChanges.voltage = Math.max(new_volt - tempVoltStepDown, targetVolt);
+            }
+
+            reason = `Moving to benchmark target: ${targetFreq}MHz @ ${targetVolt}mV`;
+          }
+        } else {
+          // Normal cool/idle behavior
+          proposedChanges = handleCoolOrIdeal();
+        }
+
         tuningState.current.tunerPaused = false;
     } else { // CORE IDEAL
         reason = `Core Ideal (${info.temp.toFixed(1)}°C), pausing tuner.`;
@@ -804,8 +883,46 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
         previousErrorCount: state.info?.hashrateMonitor?.asics[0]?.errorCount || 0,
         tempAtPause: 0,
         pauseTime: 0,
+        benchmarkActive: false,
+        benchmarkProfileLoaded: false,
+        targetFrequency: null,
+        targetVoltage: null,
+        targetHashrate: null,
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minerConfig.ip]);
+
+  // Listen for benchmark events to pause/resume auto-tuner
+  useEffect(() => {
+    let unlistenStart: (() => void) | undefined;
+    let unlistenStop: (() => void) | undefined;
+
+    const setup = async () => {
+      try {
+        unlistenStart = await listen<{ minerIp: string }>('benchmark-started', (event) => {
+          if (event.payload.minerIp === minerConfig.ip) {
+            console.log('[MinerCard] Benchmark started for', minerConfig.ip, '- pausing auto-tuner');
+            tuningState.current.benchmarkActive = true;
+          }
+        });
+
+        unlistenStop = await listen<{ minerIp: string }>('benchmark-stopped', (event) => {
+          if (event.payload.minerIp === minerConfig.ip) {
+            console.log('[MinerCard] Benchmark stopped for', minerConfig.ip, '- resuming auto-tuner');
+            tuningState.current.benchmarkActive = false;
+          }
+        });
+      } catch (error) {
+        console.log('[MinerCard] Not running in Tauri environment');
+      }
+    };
+
+    setup();
+
+    return () => {
+      unlistenStart?.();
+      unlistenStop?.();
+    };
   }, [minerConfig.ip]);
   
   useEffect(() => {
@@ -1130,7 +1247,17 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                                   </div>
                               </DialogContent>
                           </Dialog>
-                      
+                          {/* Benchmark Button */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => openBenchmarkWindow(minerConfig.ip)}
+                            title="Open Benchmark Tool"
+                          >
+                            <Activity className="h-4 w-4" />
+                          </Button>
+
                   </div>
               </div>
               <div className="absolute bottom-[-10px] left-1/2 -translate-x-1/2">

@@ -207,3 +207,16 @@ export type BenchmarkProfile = {
   // Notes from benchmark
   notes?: string;
 };
+
+// Benchmark history entry - wraps a profile with a unique ID
+export type BenchmarkHistoryEntry = BenchmarkProfile & {
+  id: string; // Unique identifier for this benchmark run
+};
+
+// Benchmark history storage structure
+export type BenchmarkHistory = {
+  // Map of miner IP to array of benchmark entries (newest first)
+  entries: Record<string, BenchmarkHistoryEntry[]>;
+  // Maximum entries to keep per miner
+  maxEntriesPerMiner: number;
+};

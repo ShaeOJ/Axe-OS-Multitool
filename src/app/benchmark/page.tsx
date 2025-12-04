@@ -27,6 +27,7 @@ import {
   BarChart3,
   Save,
   FileCheck,
+  History,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { MinerConfig, MinerState, MinerInfo } from '@/lib/types';
@@ -51,7 +52,9 @@ import {
   createProfileFromSummary,
   formatProfileSummary,
 } from '@/lib/benchmark-profiles';
-import type { BenchmarkProfile } from '@/lib/types';
+import { addBenchmarkToHistory, getMinerBenchmarkHistory } from '@/lib/benchmark-history';
+import { BenchmarkHistoryDialog } from '@/components/benchmark-history-dialog';
+import type { BenchmarkProfile, BenchmarkHistoryEntry } from '@/lib/types';
 
 interface ToolsData {
   miners: MinerConfig[];
@@ -81,6 +84,7 @@ export default function BenchmarkPage() {
   // Profile state
   const [existingProfile, setExistingProfile] = useState<BenchmarkProfile | null>(null);
   const [profileSaved, setProfileSaved] = useState(false);
+  const [historyCount, setHistoryCount] = useState(0);
 
   // Direct miner info for preselected miners (when event system doesn't work)
   const [directMinerInfo, setDirectMinerInfo] = useState<MinerInfo | null>(null);
@@ -184,6 +188,11 @@ export default function BenchmarkPage() {
         setExistingProfile(profile);
         setProfileSaved(false);
       });
+
+      // Load history count
+      getMinerBenchmarkHistory(selectedMiner).then(entries => {
+        setHistoryCount(entries.length);
+      });
     }
   }, [selectedMiner, data]);
 
@@ -239,7 +248,7 @@ export default function BenchmarkPage() {
     benchmarkRef.current?.stop();
   };
 
-  // Save benchmark profile
+  // Save benchmark profile (saves to both current profile and history)
   const handleSaveProfile = async () => {
     if (!summary || !selectedMinerInfo) return;
 
@@ -248,8 +257,14 @@ export default function BenchmarkPage() {
       ASICModel: selectedMinerInfo.ASICModel,
     });
 
+    // Save as current profile for auto-tuner
     await saveBenchmarkProfile(profile);
     setExistingProfile(profile);
+
+    // Also save to history
+    await addBenchmarkToHistory(profile);
+    setHistoryCount(prev => prev + 1);
+
     setProfileSaved(true);
   };
 
@@ -362,6 +377,19 @@ export default function BenchmarkPage() {
                     <FileCheck className="h-3 w-3" />
                     <span>Saved profile: {formatProfileSummary(existingProfile)}</span>
                   </div>
+                )}
+                {/* History Button */}
+                {selectedMiner && historyCount > 0 && (
+                  <BenchmarkHistoryDialog
+                    minerIp={selectedMiner}
+                    minerName={selectedMinerConfig?.name || selectedMiner}
+                    trigger={
+                      <Button variant="outline" size="sm" className="w-full mt-2" disabled={isRunning}>
+                        <History className="h-4 w-4 mr-2" />
+                        View History ({historyCount} runs)
+                      </Button>
+                    }
+                  />
                 )}
               </div>
 

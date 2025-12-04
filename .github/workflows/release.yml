@@ -56,38 +56,31 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'AxeOS Live! ${{ github.ref_name }}'
           releaseBody: |
-            ## What's New in v1.5.0
+            ## What's New in v1.7.0
 
-            ### Hashrate Benchmark Tool
-            A powerful new tool to automatically find the optimal voltage and frequency settings for your miners!
+            ### Benchmark History UI
+            View and compare your past benchmark runs! Never lose track of your best settings.
 
             #### Features
-            - **Quick Benchmark** - Test stability of current settings (~10 minutes)
-            - **Full Optimization** - Automated search for maximum hashrate (30+ minutes)
-            - **Efficiency Mode** - Find the most efficient J/TH settings
-            - **Live Progress** - Real-time display of hashrate, temperature, and power during testing
-            - **Results Table** - Top 5 performers by hashrate and efficiency
-            - **Auto-Apply** - Automatically applies the best settings found
+            - **History Storage** - Automatically saves up to 10 benchmark results per miner
+            - **History Browser** - View all past benchmarks with date, time, mode, and results
+            - **Detail View** - See best hashrate/efficiency settings, safe limits, and all tested combinations
+            - **Compare Mode** - Select two benchmarks to compare side-by-side with difference indicators
+            - **Easy Management** - Delete individual entries or clear all history
 
-            #### Safety Features
-            - Temperature limits (66°C chip, 86°C VR)
-            - Power limit (40W for DC plug safety)
-            - Input voltage monitoring (4.8V - 5.5V)
-            - 90-second stabilization between tests
-            - Graceful stop with best settings applied
+            #### How to Use
+            1. Run a benchmark and save the profile
+            2. Click **View History** button in the benchmark configuration
+            3. Browse past runs, view details, or compare results
 
-            #### How It Works
-            1. Go to **Tools > Hashrate Benchmark Tool**
-            2. Select a miner and benchmark mode
-            3. Set starting voltage/frequency (or use current settings)
-            4. Click **Start Benchmark**
-            5. The tool will systematically test combinations and find optimal settings
-
-            Based on the popular [Bitaxe-Hashrate-Benchmark](https://github.com/ShaeOJ/Bitaxe-Hashrate-Benchmark) Python tool, now built directly into the app!
+            ### Also Included (v1.6.x)
+            - **Bulk Actions** - Select multiple miners, apply settings, restart, or assign to groups
+            - **Miner Groups** - Create custom groups with color coding, filter dashboard by group
+            - **Benchmark Improvements** - Device-specific profiles, better hashrate drop detection, performance optimizations
 
             ---
 
-            **Full Changelog**: https://github.com/ShaeOJ/Axe-OS-Multitool/compare/v1.4.0...v1.5.0
+            **Full Changelog**: https://github.com/ShaeOJ/Axe-OS-Multitool/compare/v1.6.4...v1.7.0
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

@@ -1,242 +1,218 @@
-# AxeOS Live!
+☢️ VAULT-TEC INDUSTRIES PRESENTS ☢️
+PIP-BOY MINING TERMINAL: AxeOS Live!
+"Because civilization won't rebuild itself without hashrate, Vault Dweller!"
 
-A native desktop application for monitoring and auto-tuning Bitaxe and other AxeOS-based miners on your local network.
+📟 WHAT IS THIS CONTRAPTION?
+AxeOS Live! is a Pre-War desktop application recovered from Vault-Tec's cryptocurrency division. It runs natively on Windows, macOS, and Linux terminals, providing real-time monitoring, performance analytics, and intelligent auto-tuning for your AxeOS mining units scattered across the wasteland... er, your local network.
+All configurations are stored locally on your Pip-Boy's holotape drive and will survive even the most aggressive radroach infestations!
 
-## What is AxeOS Live?
+🏠 WHY A DESKTOP APPLICATION?
+To monitor mining units on your private vault network, the application must operate from a terminal within that same network. Our Vault-Tec engineers have provided:
 
-AxeOS Live is a **desktop application** that runs natively on Windows, macOS, and Linux. It provides real-time monitoring, performance analytics, and intelligent auto-tuning for your AxeOS miners. All your miner configurations are saved locally and persist between app restarts.
+Direct Network Access - No Brotherhood of Steel firewalls (CORS restrictions) to worry about
+Superior Performance - Native system integration, just like the old world intended
+Persistent Memory Banks - Your configurations survive system reboots and nuclear winters
+Auto-Update Protocol - Seamless patches beamed directly to your terminal
 
-### Why a Desktop App?
 
-To monitor miners on your private home network, the application must run on a computer within that same network. The desktop app provides:
-- **Direct network access** to your miners without CORS restrictions
-- **Better performance** with native system integration
-- **Persistent storage** of your miner configurations
-- **Auto-update capabilities** for seamless updates
+🚀 DEPLOYMENT PROCEDURES
+Download the Application (Recommended for Non-Technical Vault Dwellers)
+For Windows Terminal Operators:
+Acquire one of the following installation holotapes from the Releases terminal:
 
-## Getting Started
+MSI Installer (Overseer Recommended): AxeOS Live!_1.0.0_x64_en-US.msi
+EXE Installer: AxeOS Live!_1.0.0_x64-setup.exe
 
-### Download the App (Easiest)
+Double-click the installer and follow the friendly Vault-Boy prompts. Your terminal will be operational before you can say "War never changes!"
 
-**For Windows Users:**
+Operating Your New Terminal
 
-Download and run one of the installers from the [Releases](../../releases) page:
-- **MSI Installer** (Recommended): `AxeOS Live!_1.0.0_x64_en-US.msi`
-- **EXE Installer**: `AxeOS Live!_1.0.0_x64-setup.exe`
+Launch AxeOS Live! from your Start Menu or Desktop Shortcut
+Register Your Mining Units:
 
-Double-click the installer and follow the prompts. The app will be installed and ready to use!
+Locate and press the [Add Miner] button
+Input your unit's local network designation (e.g., 192.168.1.100)
+Assign a custom callsign and accent color (for that personal touch!)
+Confirm with [Add Miner]
 
-### Using the App
 
-1.  **Launch AxeOS Live!** from your Start Menu or Desktop
-2.  **Add Your Miners**:
-    - Click the "Add Miner" button
-    - Enter your miner's local IP address (e.g., `192.168.1.100`)
-    - Give it a custom name and choose an accent color
-    - Click "Add Miner"
+Your fleet roster will be automatically preserved and restored upon each terminal activation!
 
-    Your miners will be automatically saved and loaded on next startup!
 
-### Building from Source (Developers)
+Building from Source (For Vault-Tec Engineers Only)
+Should you wish to construct the application yourself or contribute to the cause:
+Prerequisites:
 
-If you want to build the app yourself or contribute to development:
+Node.js: Acquire from nodejs.org (Version 18+ required — older versions may contain synth code)
+Rust: Essential for Tauri construction. Install from rustup.rs
+npm: Bundled automatically with Node.js (how convenient!)
 
-#### Prerequisites
+Assembly Protocol:
+# Clone the Repository from the Archives
+git clone https://github.com/yourusername/Axe-OS-Multitool.git
+cd Axe-OS-Multitool
 
-- **Node.js**: Download from [nodejs.org](https://nodejs.org/). Version 18 or higher is required.
-- **Rust**: Required for building the Tauri app. Install from [rustup.rs](https://rustup.rs/)
-- **npm**: Comes automatically with Node.js
+# Acquire Dependencies
+npm install
 
-#### Setup
-
-1.  **Clone the Repository**:
-    ```bash
-    git clone https://github.com/yourusername/Axe-OS-Multitool.git
-    cd Axe-OS-Multitool
-    ```
-
-2.  **Install Dependencies**:
-    ```bash
-    npm install
-    ```
-
-3.  **Run in Development Mode**:
-    ```bash
-    npm run tauri:dev
-    ```
-    This will launch the desktop app with hot-reload enabled.
-
-#### Building Installers
-
-To create your own installers:
-
-```bash
+# Initiate Development Mode
+npm run tauri:dev
+This launches the terminal with hot-reload enabled. Vault-Tec is not responsible for burns from hot reloads.
+Constructing Distribution Holotapes:
 npm run tauri:build
-```
+Output manifests in src-tauri/target/release/bundle/:
 
-This creates installers in `src-tauri/target/release/bundle/`:
-- **Windows**:
-  - `msi/AxeOS Live!_1.0.0_x64_en-US.msi` (MSI Installer)
-  - `nsis/AxeOS Live!_1.0.0_x64-setup.exe` (EXE Installer)
-- **macOS**: `.dmg` file in `dmg/` folder
-- **Linux**: `.AppImage` or `.deb` in respective folders
+Windows: MSI and EXE installers
+macOS: DMG disk image
+Linux: AppImage and DEB packages
 
-**Note**: For best results, build on the target platform (build Windows apps on Windows, etc.)
+Pro-Tip: Build on the target platform for optimal results. Cross-compilation is about as reliable as a Mr. Handy with a loose motivator.
 
-## Key Features
+🔧 KEY FEATURES
+Monitoring & Analytics Division
+FeatureDescriptionReal-Time DashboardLive telemetry from all units: hashrate, temperature, frequency, voltage, power drawHistorical ChartsVisualize performance trends. Remember the good times!Performance StatisticsTrack shares accepted/rejected, pool difficulty, personal best, session dataDevice IntelligenceASIC model, AxeOS version, board revision, network configuration
+Auto-Tuning Department
+SystemFunctionIntelligent Auto-TunerAutomatically optimizes frequency and voltage to maintain target temperaturesAuto-Optimization EngineAnalyzes historical data to locate maximum efficiency settingsHashrate Verification ProtocolAutomatically reverts changes if performance degrades. No more crying over spilled settings!VRM Temperature SentinelDedicated voltage regulator monitoring. Those VRMs work hard!Low Voltage GuardianApplies safe settings when input voltage drops. Brownouts happen in the wasteland.Flatline Detection SystemDetects frozen hashrate and initiates automatic restart sequence
+Data Preservation Vault
 
-### Monitoring & Analytics
-- **Real-time Dashboard**: View live data from all your miners including hashrate, temperature, frequency, voltage, and power consumption
-- **Historical Charts**: Visualize your miner's performance over time with hashrate and temperature graphs
-- **Performance Statistics**: Track shares accepted/rejected, pool difficulty, best share, and session stats
-- **Device Information**: View ASIC model, AxeOS version, board version, and network details
+Local Holotape Storage - All configurations saved right on your terminal
+Persistent Memory - Survives restarts, updates, and the occasional super mutant attack
+Zero Cloud Dependency - Everything runs locally. The Enclave can't spy on your hashrate!
 
-### Auto-Tuning System
-- **Intelligent Auto-Tuner**: Automatically optimizes frequency and voltage to maintain target temperatures
-- **Auto-Optimization**: Analyzes historical data to find the most power-efficient settings
-- **Hashrate Verification**: Automatically reverts changes if hashrate drops significantly
-- **VRM Temperature Protection**: Dedicated monitoring and cooling for voltage regulator temperatures
-- **Low Voltage Protection**: Automatically applies safe settings when input voltage drops
-- **Flatline Detection**: Detects stuck hashrate and restarts miner if needed
 
-### Data Persistence
-- **Local Storage**: All miner configurations saved locally in the app
-- **Persistent Settings**: Your miners and their custom tuner settings survive app restarts
-- **No Cloud Dependency**: Everything runs locally on your network
+🎯 AUTO-TUNER OPERATOR'S MANUAL
+Activation Sequence
 
-## Auto-Tuner Guide
+Enable the Auto-Tuner: Toggle the switch on any miner card
+Configure Parameters: Click the ⚙️ icon to access tuning controls
+Monitor & Relax: The system handles adjustments automatically. Grab a Nuka-Cola!
 
-### How to Enable Auto-Tuning
 
-1. **Enable the Auto-Tuner**: Toggle the "Auto-Tuner" switch on any miner card
-2. **Configure Settings**: Click the ⚙️ settings icon next to the toggle to customize tuning parameters
-3. **Monitor Performance**: The tuner will automatically adjust settings and notify you of changes
+Temperature-Based Optimization Protocol
+The auto-tuner maintains core temperature around your Target Temp by dynamically adjusting frequency and voltage:
+🔥 WHEN UNIT IS OVERHEATING:
 
-### Temperature-Based Tuning
+Reduces frequency and voltage for thermal relief
+VRM temperature monitored separately (double the protection!)
 
-The auto-tuner maintains your miner's core temperature around the configured `Target Temp` by dynamically adjusting frequency and voltage:
+❄️ WHEN UNIT IS RUNNING COOL:
 
-**When the miner is too hot:**
-- Reduces frequency and voltage to cool down
-- VRM temperature is also monitored separately for additional protection
+Increases frequency and voltage for performance boost
+Smart voltage-stuck detection prevents inefficient tuning
+Auto-pauses when ideal temperature achieved
 
-**When the miner is cool (below target):**
-- Increases frequency and voltage to boost performance
-- Implements smart voltage-stuck detection to prevent inefficient tuning
-- Automatically pauses when temperature reaches the ideal range
 
-### Auto-Optimization Feature
+Auto-Optimization Subroutine
+The Auto-Optimizer is like having a tiny Vault-Tec scientist living in your terminal:
 
-The Auto-Optimizer analyzes historical performance data to find the most power-efficient settings:
+Data Collection - Continuously logs hashrate, temperature, frequency, voltage
+Analysis Cycle - Every N cycles, examines all data within target temp range
+Peak Detection - Identifies maximum hashrate achieved
+Efficiency Selection - Finds settings with near-peak hashrate at lowest voltage
+Auto-Application - Implements optimal configuration. Science!
 
-1.  **Data Collection**: Continuously records hashrate, temperature, frequency, and voltage data
-2.  **Analysis**: Every N cycles (configurable via `Auto Optimize Trigger Cycles`), analyzes all data within your target temperature range
-3.  **Peak Detection**: Identifies the maximum hashrate achieved in the target temp range
-4.  **Efficiency Selection**: Finds settings that achieve near-peak hashrate (within `Efficiency Tolerance Percent`) with the **lowest voltage**
-5.  **Application**: Automatically applies the most efficient settings
 
-### Hashrate Verification
+Hashrate Verification System
+"Trust, but verify!" — Vault-Tec Motto
 
-The tuner includes intelligent verification to ensure changes actually improve performance:
+Verification Delay: Configurable wait period (default 60 seconds) before assessment
+Automatic Rollback: If hashrate drops >100 GH/s, previous settings restored immediately
+Stability Analysis: Allows readings to normalize before judgment
 
-- **Verification Wait Time**: Configurable delay (default 60 seconds) before checking if hashrate improved
-- **Automatic Revert**: If hashrate drops significantly (>100 GH/s), automatically reverts to previous settings
-- **Stability Check**: Allows hashrate to stabilize before making judgments
 
-### Safety Features
+Safety Protocols (S.P.E.C.I.A.L. Features)
+ProtocolFunctionLow Voltage ShieldAuto-applies safe settings if input drops below 4.9VFlatline ResponseDetects stuck hashrate, initiates restartFrequency/Voltage BoundariesRespects configured min/max for safe operationAdjustment Cooldown60-second delay between changes prevents oscillation
 
-- **Low Voltage Protection**: Automatically applies safe settings if input voltage drops below 4.9V
-- **Flatline Detection**: Detects stuck hashrate and restarts miner automatically
-- **Frequency & Voltage Limits**: Respects configured min/max values for safe operation
-- **Adjustment Cooldown**: Waits 60 seconds between adjustments to prevent oscillation
+Configurable Parameters
+All tuner settings customizable per unit:
 
-### Configurable Settings
+Target Temp / VR Target Temp - Desired operating temperatures
+Min/Max Frequency - Safe frequency range (MHz)
+Min/Max Voltage - Safe core voltage range (mV)
+Step Sizes - Adjustment increment per change
+Verification Wait Seconds - Delay before hashrate verification
+Auto Optimize Trigger Cycles - Optimizer frequency
+Efficiency Tolerance Percent - Acceptable hashrate variance
+Flatline Detection - Enable/disable stuck detection
 
-All tuner parameters can be customized per miner:
+💡 VAULT-TEC TIP: Start with default settings and adjust gradually. Rome wasn't rebuilt in a day, and neither is the perfect overclock!
 
-- **Target Temp / VR Target Temp**: Desired operating temperatures
-- **Min/Max Frequency**: Safe frequency range (MHz)
-- **Min/Max Voltage**: Safe core voltage range (mV)
-- **Step Sizes**: How much to adjust frequency/voltage per change
-- **Verification Wait Seconds**: How long to wait before verifying hashrate changes
-- **Auto Optimize Trigger Cycles**: How often to run the optimizer
-- **Efficiency Tolerance Percent**: Acceptable hashrate variance for efficiency optimization
-- **Flatline Detection**: Enable/disable stuck hashrate detection
+🔧 TROUBLESHOOTING TERMINAL
+Application Won't Initialize
+"Port Already in Use" Error:
 
-**Tip**: Start with default settings and adjust gradually based on your miner's behavior and your power/performance goals.
+Another instance may be active — terminate it first
+Wait 30-60 seconds for port release (patience, Vault Dweller)
+Alternative: Use Tauri mode with npm run tauri:dev
 
-## Troubleshooting
+Build Failures:
 
-### App Won't Start
+Execute npm run typecheck for TypeScript diagnostics
+Verify Rust installation: rustc --version
+Purge build cache: rm -rf src-tauri/target
 
-**Port Already in Use Error:**
-- Another instance may be running - close it first
-- Wait 30-60 seconds for the port to be released
-- Or use the Tauri version: `npm run tauri:dev` instead
 
-**Build Errors:**
-- Run `npm run typecheck` to check for TypeScript errors
-- Ensure Rust is installed: `rustc --version`
-- Clear build cache: `rm -rf src-tauri/target` (or delete the folder manually)
+Cannot Establish Connection to Mining Units
 
-### Can't Connect to Miners
+Confirm units are on the same network as your terminal
+Verify IP addresses via router admin panel
+Test connectivity: visit http://MINER_IP in your browser
+Check firewall isn't blocking local network traffic (damn raiders)
 
-- Ensure your miners are on the same network as the computer running the app
-- Verify miner IP addresses are correct (check your router)
-- Test miner access by visiting `http://MINER_IP` in your browser
-- Check firewall settings aren't blocking local network connections
 
-### Data Not Persisting
+Data Not Persisting
 
-- In the installed desktop app, miner configurations are stored locally using Tauri's store plugin
-- Data persists between app updates and restarts
-- In dev mode, data is stored in browser localStorage
+Desktop installation uses Tauri's store plugin for local persistence
+Data survives updates and restarts
+Development mode uses browser localStorage (less reliable than a Vault-Tec shelter)
 
-### Auto-Tuner Issues
 
-**Tuner making too many changes:**
-- Increase "Verification Wait Seconds" to give more time between adjustments
-- Reduce step sizes for gentler adjustments
-- Adjust target temperature tolerance
+Auto-Tuner Misbehavior
+Tuner Making Excessive Adjustments:
 
-**Hashrate keeps dropping:**
-- Lower max frequency/voltage limits
-- Increase "Efficiency Tolerance Percent" for more conservative optimization
-- Disable "Auto Optimize" and use manual temperature-based tuning only
+Increase "Verification Wait Seconds" for longer stabilization
+Reduce step sizes for gentler modifications
+Adjust temperature tolerance range
 
-## Advanced Configuration
+Hashrate Continuously Declining:
 
-### Customizing the App Icon
+Lower max frequency/voltage limits
+Increase "Efficiency Tolerance Percent" for conservative operation
+Disable "Auto Optimize" — use manual temperature tuning only
 
-To use your own icon:
 
-1. Create a square PNG image (512x512 or 1024x1024 recommended)
-2. Save it in the project root
-3. Run: `npm run tauri icon your-icon.png`
-4. Rebuild: `npm run tauri:build`
+⚙️ ADVANCED CONFIGURATION
+Custom Terminal Icon
+To personalize your installation:
 
-This will generate all required icon sizes for Windows, macOS, and Linux.
+Create a square PNG image (512x512 or 1024x1024 recommended)
+Save to project root directory
+Execute: npm run tauri icon your-icon.png
+Rebuild: npm run tauri:build
 
-### Custom Network Settings (Development)
+Express your individuality! Within Vault-Tec approved parameters, of course.
 
-The app runs on port 9002 by default during development. To change this, edit `package.json`:
-
-```json
+Network Configuration (Development Mode)
+Default port: 9002
+To modify, edit package.json:
 "dev": "next dev -p YOUR_PORT -H 0.0.0.0"
-```
 
-## Contributing
+📚 SUPPLEMENTARY DOCUMENTATION
+For the technically curious Vault Dweller:
 
-Contributions are welcome! Please feel free to submit issues or pull requests.
+TAURI_SETUP.md - Desktop application architecture
+AUTO_TUNE_FIXES.md - Auto-tuner implementation specifics
+HASHRATE_VERIFICATION.md - Verification system details
+NATIVE_CONVERSION.md - Conversion technical notes
 
-## Support
 
-For detailed technical documentation about the Tauri conversion and architecture, see:
-- `TAURI_SETUP.md` - Tauri desktop app setup
-- `AUTO_TUNE_FIXES.md` - Auto-tuner implementation details
-- `HASHRATE_VERIFICATION.md` - Hashrate verification system
-- `NATIVE_CONVERSION.md` - Native conversion notes
+🤝 CONTRIBUTE TO THE CAUSE
+Contributions welcome! Submit issues or pull requests to help rebuild civilization, one commit at a time.
 
-## License
+⚖️ LEGAL DISCLAIMER
+This project is provided as-is for monitoring and managing your AxeOS miners. Vault-Tec Industries assumes no liability for mining addiction, excessive hashrate obsession, or arguments with family members about electricity bills.
 
-This project is provided as-is for monitoring and managing your AxeOS miners.
+☢️ VAULT-TEC MINING DIVISION ☢️
+"Preparing for the future... one block at a time!"
+Remember: Stay S.P.E.C.I.A.L., Stay Profitable!
+— Your Friends at Vault-Tec

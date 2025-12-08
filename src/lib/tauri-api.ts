@@ -433,3 +433,46 @@ export async function showSystemNotification(
     console.error('[Tauri API] Failed to show notification:', error);
   }
 }
+
+// ============================================
+// System Tray
+// ============================================
+
+/**
+ * Hide the main window to system tray
+ */
+export async function hideToTray(): Promise<void> {
+  if (isTauri()) {
+    try {
+      await invoke('hide_to_tray');
+    } catch (error) {
+      console.error('[Tauri API] Failed to hide to tray:', error);
+    }
+  }
+}
+
+/**
+ * Show the main window from system tray
+ */
+export async function showMainWindow(): Promise<void> {
+  if (isTauri()) {
+    try {
+      await invoke('show_main_window');
+    } catch (error) {
+      console.error('[Tauri API] Failed to show main window:', error);
+    }
+  }
+}
+
+/**
+ * Quit the application completely
+ */
+export async function quitApp(): Promise<void> {
+  if (isTauri()) {
+    try {
+      await invoke('quit_app');
+    } catch (error) {
+      console.error('[Tauri API] Failed to quit app:', error);
+    }
+  }
+}

@@ -25,6 +25,10 @@ export interface AlertSettings {
 
   // Sound
   soundEnabled: boolean;
+
+  // System tray
+  minimizeToTray: boolean; // Minimize to tray instead of closing
+  startMinimized: boolean; // Start minimized to tray
 }
 
 export const defaultAlertSettings: AlertSettings = {
@@ -44,6 +48,9 @@ export const defaultAlertSettings: AlertSettings = {
   blockFoundAlerts: true,
 
   soundEnabled: false,
+
+  minimizeToTray: true,
+  startMinimized: false,
 };
 
 /**

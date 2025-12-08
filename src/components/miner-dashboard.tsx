@@ -27,6 +27,7 @@ import { ToolsMenu } from '@/components/tools-menu';
 import { useAppSettings } from '@/hooks/use-app-settings';
 import { useAlertMonitor } from '@/hooks/use-alert-monitor';
 import { useDashboardSettings } from '@/hooks/use-dashboard-settings';
+import { useWindowEvents } from '@/hooks/use-window-events';
 import { BulkActionsBar } from '@/components/bulk-actions-bar';
 import { DashboardControls } from '@/components/dashboard-controls';
 import { GroupManager, GroupBadge } from '@/components/group-manager';
@@ -84,6 +85,9 @@ export function MinerDashboard() {
 
   // Alert monitoring
   useAlertMonitor(miners, minerStates, alertSettings);
+
+  // Window events (minimize to tray, etc.)
+  useWindowEvents(alertSettings.minimizeToTray, alertSettings.startMinimized);
 
   // Database history persistence
   const minerIps = useMemo(() => miners.map(m => m.ip), [miners]);

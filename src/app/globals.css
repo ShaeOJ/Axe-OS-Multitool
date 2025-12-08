@@ -251,8 +251,25 @@
   }
 }
 
-.share-animation-wrapper {
-  position: absolute;
-  right: 60px;
-  top: 10px;
+/* Matrix-style falling hash animation */
+@keyframes matrix-hash-fall {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: var(--hash-opacity, 0.8);
+  }
+  70% {
+    opacity: var(--hash-opacity, 0.8);
+  }
+  100% {
+    transform: translateY(calc(100% + 80px));
+    opacity: 0;
+  }
+}
+
+.matrix-hash-fall {
+  animation: matrix-hash-fall ease-out forwards;
+  will-change: transform, opacity;
 }

@@ -25,6 +25,7 @@ import {
   RotateCcw,
   Wrench,
   Activity,
+  Power,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { MinerConfig, MinerState, MinerInfo } from '@/lib/types';
@@ -49,7 +50,7 @@ import {
   formatReleaseDate,
   type FirmwareCheckResult,
 } from '@/lib/firmware-checker';
-import { openUrl } from '@/lib/tauri-api';
+import { openUrl, quitApp } from '@/lib/tauri-api';
 
 const SETTINGS_KEY = 'axeos-app-settings';
 const SAVE_DEBOUNCE_MS = 500; // Debounce saves to avoid excessive disk writes
@@ -482,6 +483,25 @@ export default function ToolsPage() {
                   )}
                 </div>
               )}
+            </div>
+
+            {/* Application */}
+            <div className="space-y-3 pt-4 border-t">
+              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                Application
+              </h4>
+
+              <Button
+                variant="outline"
+                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => quitApp()}
+              >
+                <Power className="mr-2 h-4 w-4" />
+                Quit AxeOS Live!
+              </Button>
+              <p className="text-xs text-muted-foreground pl-1">
+                Completely exit the application (closing the window hides to system tray)
+              </p>
             </div>
           </TabsContent>
 

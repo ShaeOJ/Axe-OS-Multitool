@@ -1,7 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{
+    AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder,
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    image::Image,
+};
 use futures::future::join_all;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -345,6 +350,32 @@ async fn get_local_subnet() -> Result<String, String> {
     }
 }
 
+// Command to show main window (called from tray)
+#[tauri::command]
+async fn show_main_window(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+// Command to hide main window to tray
+#[tauri::command]
+async fn hide_to_tray(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.hide().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+// Command to quit the application
+#[tauri::command]
+async fn quit_app(app: AppHandle) -> Result<(), String> {
+    app.exit(0);
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -363,9 +394,13 @@ pub fn run() {
       open_tools_window,
       open_benchmark_window,
       scan_network,
-      get_local_subnet
+      get_local_subnet,
+      show_main_window,
+      hide_to_tray,
+      quit_app
     ])
     .setup(|app| {
+      // Setup logging in debug mode
       if cfg!(debug_assertions) {
         app.handle().plugin(
           tauri_plugin_log::Builder::default()
@@ -373,7 +408,78 @@ pub fn run() {
             .build(),
         )?;
       }
+
+      // Create system tray
+      let show_item = MenuItem::with_id(app, "show", "Show AxeOS Live!", true, None::<&str>)?;
+      let analytics_item = MenuItem::with_id(app, "analytics", "Open Analytics", true, None::<&str>)?;
+      let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+
+      let menu = Menu::with_items(app, &[&show_item, &analytics_item, &quit_item])?;
+
+      let tray_icon = TrayIconBuilder::new()
+        .icon(Image::from_path("icons/icon.png").unwrap_or_else(|_| {
+            // Fallback to embedded icon
+            Image::from_bytes(include_bytes!("../icons/32x32.png")).expect("Failed to load tray icon")
+        }))
+        .tooltip("AxeOS Live! - Mining Monitor")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| {
+          match event.id.as_ref() {
+            "show" => {
+              if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+              }
+            }
+            "analytics" => {
+              // Open analytics window
+              if let Some(window) = app.get_webview_window("analytics") {
+                let _ = window.set_focus();
+              } else {
+                let url = WebviewUrl::App("analytics".into());
+                let _ = WebviewWindowBuilder::new(app, "analytics", url)
+                  .title("Mining Analytics - AxeOS Live!")
+                  .inner_size(1200.0, 800.0)
+                  .min_inner_size(800.0, 600.0)
+                  .resizable(true)
+                  .center()
+                  .build();
+              }
+            }
+            "quit" => {
+              app.exit(0);
+            }
+            _ => {}
+          }
+        })
+        .on_tray_icon_event(|tray, event| {
+          // Left click shows the window
+          if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+            let app = tray.app_handle();
+            if let Some(window) = app.get_webview_window("main") {
+              let _ = window.show();
+              let _ = window.set_focus();
+            }
+          }
+        })
+        .build(app)?;
+
+      // Store tray icon in app state so it doesn't get dropped
+      app.manage(tray_icon);
+
       Ok(())
+    })
+    .on_window_event(|window, event| {
+      // Intercept close request on main window - hide to tray instead
+      if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+        if window.label() == "main" {
+          // Prevent the window from closing
+          api.prevent_close();
+          // Hide the window instead
+          let _ = window.hide();
+        }
+      }
     })
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

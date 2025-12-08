@@ -56,31 +56,40 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'AxeOS Live! ${{ github.ref_name }}'
           releaseBody: |
-            ## What's New in v1.7.0
+            ## What's New in v1.8.0
 
-            ### Benchmark History UI
-            View and compare your past benchmark runs! Never lose track of your best settings.
+            ### System Tray Support
+            AxeOS Live! now runs in the background with full system tray integration!
 
             #### Features
-            - **History Storage** - Automatically saves up to 10 benchmark results per miner
-            - **History Browser** - View all past benchmarks with date, time, mode, and results
-            - **Detail View** - See best hashrate/efficiency settings, safe limits, and all tested combinations
-            - **Compare Mode** - Select two benchmarks to compare side-by-side with difference indicators
-            - **Easy Management** - Delete individual entries or clear all history
+            - **System Tray Icon** - App icon in your system tray for quick access
+            - **Background Monitoring** - Continues monitoring miners when window is closed
+            - **Tray Menu** - Right-click for quick actions (Show, Analytics, Quit)
+            - **Click to Show** - Left-click tray icon to bring window back
+            - **Minimize to Tray** - Closing the window hides to tray instead of quitting
+            - **Start Minimized** - Option to launch the app minimized to tray
+            - **Native Notifications** - Alerts work even when minimized
 
-            #### How to Use
-            1. Run a benchmark and save the profile
-            2. Click **View History** button in the benchmark configuration
-            3. Browse past runs, view details, or compare results
+            #### Settings (Tools > Tray tab)
+            - **Minimize to tray** - Toggle hide-to-tray behavior
+            - **Start minimized** - Launch directly to system tray
 
-            ### Also Included (v1.6.x)
-            - **Bulk Actions** - Select multiple miners, apply settings, restart, or assign to groups
-            - **Miner Groups** - Create custom groups with color coding, filter dashboard by group
-            - **Benchmark Improvements** - Device-specific profiles, better hashrate drop detection, performance optimizations
+            #### How to Quit
+            - Right-click tray icon → **Quit**
+            - Tools window → **Quit AxeOS Live!** button
+
+            ### Matrix Share Animation
+            - New Matrix-style falling hash animation when shares are accepted/rejected
+            - Subtle green rain for accepted shares, red for rejected
+
+            ### Previous Features (v1.7.x)
+            - Benchmark History UI with compare mode
+            - Bulk Actions for multiple miners
+            - Miner Groups with color coding
 
             ---
 
-            **Full Changelog**: https://github.com/ShaeOJ/Axe-OS-Multitool/compare/v1.6.4...v1.7.0
+            **Full Changelog**: https://github.com/ShaeOJ/Axe-OS-Multitool/compare/v1.7.0...v1.8.0
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

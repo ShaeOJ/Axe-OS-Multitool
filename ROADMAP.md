@@ -1,6 +1,6 @@
 # AxeOS Live! Feature Roadmap
 
-## Current Version: 1.7.0
+## Current Version: 1.8.0
 
 ### Completed Features (v1.2.0)
 - [x] Dynamic hashrate gauge scaling for high-power miners (up to 10+ TH/s)
@@ -123,11 +123,15 @@
 - **Status**: Not started
 - **Complexity**: High
 
-#### 4. System Tray Notifications
-- [ ] Native system tray notifications (Tauri)
-- [ ] Background monitoring when minimized
-- [ ] Tray icon with quick status
-- **Status**: Not started
+#### 4. System Tray Notifications - COMPLETED (v1.8.0)
+- [x] Native system tray with icon
+- [x] Background monitoring when minimized
+- [x] Tray menu (Show, Analytics, Quit)
+- [x] Left-click tray icon to show window
+- [x] "Minimize to tray" setting
+- [x] "Start minimized" setting
+- [x] Notifications work while minimized
+- **Status**: Complete
 - **Complexity**: Medium
 
 ---
@@ -173,7 +177,6 @@
 
 ### Next Up
 - Export historical data to CSV/JSON
-- System Tray Notifications
 - Custom Dashboard Layouts
 
 ---
@@ -260,6 +263,25 @@
   - Delete individual entries or clear all history
   - Integrated into benchmark page with "View History" button
   - Auto-saves to history when saving benchmark profile
+
+### Session 8 (2025-12-08)
+- **Matrix Share Animation**
+  - Replaced single hash display with Matrix-style falling hash rain
+  - Vertical columns of hex characters falling across miner card
+  - Green glow for accepted shares, red for rejected
+  - Subtle opacity (0.15-0.35) for non-intrusive effect
+  - 18 columns with 4-7 characters each, staggered cascade
+- **System Tray Support (v1.8.0)**
+  - Added Tauri tray-icon feature to Cargo.toml
+  - Created system tray with icon, tooltip, and menu
+  - Tray menu: Show AxeOS Live!, Open Analytics, Quit
+  - Left-click tray icon shows main window
+  - Window close now hides to tray instead of quitting
+  - Added `hide_to_tray`, `show_main_window`, `quit_app` commands
+  - New Settings > Tray tab with minimize/start options
+  - Added Quit button to Tools page
+  - Background monitoring continues when minimized
+- Released v1.8.0
 
 ---
 

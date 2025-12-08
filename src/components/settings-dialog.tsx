@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Bell, Zap, RotateCcw } from 'lucide-react';
+import { Bell, Zap, RotateCcw, Monitor } from 'lucide-react';
 import type { AlertSettings, PowerSettings } from '@/lib/alert-settings';
 
 interface SettingsDialogProps {
@@ -46,14 +46,18 @@ export function SettingsDialog({
         </DialogHeader>
 
         <Tabs defaultValue="alerts" className="mt-4">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="alerts" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
               Alerts
             </TabsTrigger>
             <TabsTrigger value="power" className="flex items-center gap-2">
               <Zap className="h-4 w-4" />
-              Power & Cost
+              Power
+            </TabsTrigger>
+            <TabsTrigger value="tray" className="flex items-center gap-2">
+              <Monitor className="h-4 w-4" />
+              Tray
             </TabsTrigger>
           </TabsList>
 
@@ -302,6 +306,57 @@ export function SettingsDialog({
                 <span className="text-muted-foreground">100W miner:</span>
                 <span>{powerSettings.currency}{((100 / 1000) * 24 * powerSettings.electricityRate).toFixed(2)}/day</span>
               </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="tray" className="space-y-6 mt-4">
+            {/* System Tray Settings */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                System Tray
+              </h4>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="minimize-to-tray">Minimize to tray</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Hide to system tray instead of taskbar when minimized
+                  </p>
+                </div>
+                <Switch
+                  id="minimize-to-tray"
+                  checked={alertSettings.minimizeToTray}
+                  onCheckedChange={(checked) => onUpdateAlertSettings({ minimizeToTray: checked })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="start-minimized">Start minimized</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Launch app minimized to system tray
+                  </p>
+                </div>
+                <Switch
+                  id="start-minimized"
+                  checked={alertSettings.startMinimized}
+                  onCheckedChange={(checked) => onUpdateAlertSettings({ startMinimized: checked })}
+                />
+              </div>
+            </div>
+
+            {/* Background Monitoring Info */}
+            <div className="rounded-lg border p-4 bg-muted/50">
+              <h4 className="font-medium mb-2">Background Monitoring</h4>
+              <p className="text-sm text-muted-foreground">
+                When minimized to the system tray, AxeOS Live! continues to monitor
+                your miners and will send notifications for any alerts you have enabled.
+              </p>
+              <ul className="mt-2 text-sm text-muted-foreground list-disc list-inside space-y-1">
+                <li>Left-click tray icon to show window</li>
+                <li>Right-click for quick menu</li>
+                <li>Notifications work even when minimized</li>
+              </ul>
             </div>
           </TabsContent>
         </Tabs>

@@ -1050,14 +1050,16 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
 
   return (
     <>
-      <Card 
+      <Card
         className={cn(
-          "flex flex-col shadow-inner shadow-black/20"
+          "flex flex-col shadow-inner shadow-black/20 relative overflow-hidden"
         )}
         style={{
           borderColor: minerConfig.accentColor,
           backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, hsl(var(--foreground)/.1) 2px, hsl(var(--foreground)/.1) 4px)',
         }}>
+        {/* Matrix hash rain overlay */}
+        <ShareAnimation trigger={animateShare} type={shareType} />
         <Collapsible open={isCardOpen} onOpenChange={setIsCardOpen}>
           <CardHeader className="relative">
               <div className="flex items-start justify-between">
@@ -1067,9 +1069,6 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                               <GlitchText probability={0.1}>{cardTitle}</GlitchText>
                           </CardTitle>
                           <CardDescription>{cardDescription}</CardDescription>
-                      </div>
-                      <div className="share-animation-wrapper flex items-center min-h-[32px] min-w-[120px]" style={{ marginLeft: '4rem' }}>
-                        {!isDetailsOpen && isCardOpen && <ShareAnimation trigger={animateShare} type={shareType} />}
                       </div>
                       {!isCardOpen && !isLoading && state.info && (
                           <div className="flex flex-col items-center">
@@ -1422,9 +1421,6 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                             <div className="flex items-center gap-2"><Server className="h-4 w-4 text-muted-foreground" /><p>Difficulty: {state.info?.poolDifficulty ?? 'N/A'}</p></div>
                             <div className="flex items-center gap-2"><Hash className="h-4 w-4 text-muted-foreground" /><p>Best Diff: {state.info?.bestDiff ?? 'N/A'}</p></div>
                             <div className="flex items-center gap-2"><Hash className="h-4 w-4 text-muted-foreground" /><p>Session Best: {state.info?.bestSessionDiff ?? 'N/A'}</p></div>
-                        </div>
-                        <div className="relative flex items-center justify-center min-h-[80px] share-animation-wrapper">
-                            {isDetailsOpen && <ShareAnimation trigger={animateShare} type={shareType} />}
                         </div>
                         {state.info?.hashrateMonitor?.asics[0] && (
                           <div className="col-span-2">

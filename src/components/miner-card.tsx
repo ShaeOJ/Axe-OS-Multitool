@@ -51,6 +51,7 @@ type TuningState = {
     // Hashrate verification after adjustments
     verificationCheckScheduled: boolean;
     verificationCheckTime: number;
+    verificationScheduledAt: number; // Track when verification was scheduled for timeout
     hashrateBeforeChange: number;
     previousFrequency: number;
     previousVoltage: number;
@@ -62,9 +63,12 @@ type TuningState = {
     benchmarkActive: boolean;
     // Benchmark profile integration
     benchmarkProfileLoaded: boolean;
+    benchmarkProfileLoading: boolean; // Guard against race condition
     targetFrequency: number | null;
     targetVoltage: number | null;
     targetHashrate: number | null;
+    // Prevent multiple tuneMiner calls per fetch cycle
+    lastTuneTime: number;
 };
 
 const setMinerSettings = async (ip: string, frequency: number, coreVoltage: number) => {
@@ -293,6 +297,7 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     lastTemp: 0,
     verificationCheckScheduled: false,
     verificationCheckTime: 0,
+    verificationScheduledAt: 0,
     hashrateBeforeChange: 0,
     previousFrequency: 0,
     previousVoltage: 0,
@@ -301,9 +306,11 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     pauseTime: 0,
     benchmarkActive: false,
     benchmarkProfileLoaded: false,
+    benchmarkProfileLoading: false,
     targetFrequency: null,
     targetVoltage: null,
     targetHashrate: null,
+    lastTuneTime: 0,
   });
 
   const analyzeAndDetermineBestSettings = useCallback((history: MinerDataPoint[]) => {
@@ -414,6 +421,15 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
         return;
     }
 
+    // Debounce: Prevent multiple executions within same fetch cycle (5 second window)
+    // This prevents tuneMiner from running multiple times when state updates cascade
+    const now = Date.now();
+    const TUNE_DEBOUNCE_MS = 5000;
+    if (now - tuningState.current.lastTuneTime < TUNE_DEBOUNCE_MS) {
+        return;
+    }
+    tuningState.current.lastTuneTime = now;
+
     // Core requirements: temp, frequency, coreVoltage, hashRate
     // vrTemp is optional (NerdAxe devices may not report it)
     if (!tunerSettings.enabled || info.temp == null || info.frequency == null || info.coreVoltage == null || info.hashRate == null) {
@@ -428,7 +444,11 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     }
 
     // Load benchmark profile if enabled and not already loaded
-    if (tunerSettings.useBenchmarkProfile && !tuningState.current.benchmarkProfileLoaded) {
+    // Use loading flag to prevent race condition when multiple calls happen quickly
+    if (tunerSettings.useBenchmarkProfile &&
+        !tuningState.current.benchmarkProfileLoaded &&
+        !tuningState.current.benchmarkProfileLoading) {
+      tuningState.current.benchmarkProfileLoading = true;
       try {
         const profile = await getBenchmarkProfile(minerConfig.ip);
         if (profile) {
@@ -451,18 +471,20 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
       } catch (error) {
         console.error('[Auto-Tuner] Failed to load benchmark profile:', error);
         tuningState.current.benchmarkProfileLoaded = true; // Don't retry on error
+      } finally {
+        tuningState.current.benchmarkProfileLoading = false;
       }
     }
 
-    const now = Date.now();
-
-    // Check if we need to verify a previous adjustment (with timeout protection)
+    // Check if we need to verify a previous adjustment
+    // Fixed timing: Use verificationScheduledAt to track actual schedule time
     if (tuningState.current.verificationCheckScheduled) {
-      const timeSinceScheduled = now - (tuningState.current.verificationCheckTime - (tunerSettings.verificationWaitSeconds * 1000));
-      const MAX_VERIFICATION_AGE = 120000; // 2 minutes max
+      const timeSinceScheduled = now - tuningState.current.verificationScheduledAt;
+      const expectedWaitMs = tunerSettings.verificationWaitSeconds * 1000;
+      const MAX_VERIFICATION_AGE = 120000; // 2 minutes max - safety timeout
 
-      // Verify if time has arrived OR if verification is too old (clock skew protection)
-      if (now >= tuningState.current.verificationCheckTime || timeSinceScheduled > MAX_VERIFICATION_AGE) {
+      // Verify if enough time has passed OR if verification is too old (safety timeout)
+      if (timeSinceScheduled >= expectedWaitMs || timeSinceScheduled > MAX_VERIFICATION_AGE) {
         await verifyHashrateChange(info);
       }
     }
@@ -493,8 +515,10 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                 tuningState.current.lastAdjustmentTime = Date.now();
 
                 // Schedule verification check
+                const verificationTime = Date.now();
                 tuningState.current.verificationCheckScheduled = true;
-                tuningState.current.verificationCheckTime = Date.now() + (tunerSettings.verificationWaitSeconds * 1000);
+                tuningState.current.verificationScheduledAt = verificationTime;
+                tuningState.current.verificationCheckTime = verificationTime + (tunerSettings.verificationWaitSeconds * 1000);
 
                 toast({
                     variant: "destructive",
@@ -508,7 +532,8 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                     frequencyBoostActive: false,
                     lastAdjustmentTime: Date.now(),
                     verificationCheckScheduled: true,
-                    verificationCheckTime: Date.now() + (tunerSettings.verificationWaitSeconds * 1000),
+                    verificationScheduledAt: verificationTime,
+                    verificationCheckTime: verificationTime + (tunerSettings.verificationWaitSeconds * 1000),
                     hashrateBeforeChange: info.hashRate,
                     previousFrequency: info.frequency,
                     previousVoltage: info.coreVoltage
@@ -659,8 +684,10 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                 await setMinerSettings(minerConfig.ip, optimalSettings.frequency, optimalSettings.coreVoltage);
 
                 // Schedule verification check
+                const optimizerVerifyTime = Date.now();
                 tuningState.current.verificationCheckScheduled = true;
-                tuningState.current.verificationCheckTime = Date.now() + (tunerSettings.verificationWaitSeconds * 1000);
+                tuningState.current.verificationScheduledAt = optimizerVerifyTime;
+                tuningState.current.verificationCheckTime = optimizerVerifyTime + (tunerSettings.verificationWaitSeconds * 1000);
 
                 toast({
                     title: `Auto-Optimizer: ${minerConfig.name || minerConfig.ip}`,
@@ -672,7 +699,8 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
                     voltageStuckCycles: 0,
                     frequencyBoostActive: false,
                     verificationCheckScheduled: true,
-                    verificationCheckTime: Date.now() + (tunerSettings.verificationWaitSeconds * 1000),
+                    verificationScheduledAt: optimizerVerifyTime,
+                    verificationCheckTime: optimizerVerifyTime + (tunerSettings.verificationWaitSeconds * 1000),
                     hashrateBeforeChange: currentHashrateGHS,
                     previousFrequency: info.frequency,
                     previousVoltage: info.coreVoltage
@@ -842,11 +870,13 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
             tuningState.current.hashrateBeforeChange = currentHashrateGHS;
 
             await setMinerSettings(minerConfig.ip, final_freq, final_volt);
-            tuningState.current.lastAdjustmentTime = Date.now();
+            const adjustmentTime = Date.now();
+            tuningState.current.lastAdjustmentTime = adjustmentTime;
 
             // Schedule hashrate verification check
             tuningState.current.verificationCheckScheduled = true;
-            tuningState.current.verificationCheckTime = Date.now() + (tunerSettings.verificationWaitSeconds * 1000);
+            tuningState.current.verificationScheduledAt = adjustmentTime;
+            tuningState.current.verificationCheckTime = adjustmentTime + (tunerSettings.verificationWaitSeconds * 1000);
 
             toast({
                 title: `Auto-Tuner: ${minerConfig.name || minerConfig.ip}`,
@@ -863,9 +893,23 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
     }
   }, [tunerSettings, minerConfig.ip, minerConfig.name, toast, analyzeAndDetermineBestSettings, verifyHashrateChange]);
   
+  // Track previous tuner settings to detect when they change
+  const prevTunerSettingsRef = useRef(tunerSettings);
+
   useEffect(() => {
     setIsMounted(true);
-    // Reset tuning state if component unmounts/remounts or miner changes
+
+    // Check if tuner settings changed (not just IP)
+    const settingsChanged =
+      prevTunerSettingsRef.current.minFreq !== tunerSettings.minFreq ||
+      prevTunerSettingsRef.current.maxFreq !== tunerSettings.maxFreq ||
+      prevTunerSettingsRef.current.minVolt !== tunerSettings.minVolt ||
+      prevTunerSettingsRef.current.maxVolt !== tunerSettings.maxVolt ||
+      prevTunerSettingsRef.current.targetTemp !== tunerSettings.targetTemp ||
+      prevTunerSettingsRef.current.useBenchmarkProfile !== tunerSettings.useBenchmarkProfile ||
+      prevTunerSettingsRef.current.benchmarkProfileMode !== tunerSettings.benchmarkProfileMode;
+
+    // Reset tuning state if component unmounts/remounts, miner changes, or tuner settings change
     tuningState.current = {
         voltageStuckCycles: 0,
         frequencyBoostActive: false,
@@ -878,20 +922,26 @@ export function MinerCard({ minerConfig, onRemove, isRemoving, state, updateMine
         lastTemp: 0,
         verificationCheckScheduled: false,
         verificationCheckTime: 0,
+        verificationScheduledAt: 0,
         hashrateBeforeChange: 0,
         previousFrequency: 0,
         previousVoltage: 0,
         previousErrorCount: state.info?.hashrateMonitor?.asics[0]?.errorCount || 0,
         tempAtPause: 0,
         pauseTime: 0,
-        benchmarkActive: false,
-        benchmarkProfileLoaded: false,
-        targetFrequency: null,
-        targetVoltage: null,
-        targetHashrate: null,
+        benchmarkActive: tuningState.current.benchmarkActive, // Preserve benchmark state
+        // Reset benchmark profile if settings changed
+        benchmarkProfileLoaded: settingsChanged ? false : tuningState.current.benchmarkProfileLoaded,
+        benchmarkProfileLoading: false,
+        targetFrequency: settingsChanged ? null : tuningState.current.targetFrequency,
+        targetVoltage: settingsChanged ? null : tuningState.current.targetVoltage,
+        targetHashrate: settingsChanged ? null : tuningState.current.targetHashrate,
+        lastTuneTime: 0,
     };
+
+    prevTunerSettingsRef.current = tunerSettings;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [minerConfig.ip]);
+  }, [minerConfig.ip, tunerSettings.minFreq, tunerSettings.maxFreq, tunerSettings.minVolt, tunerSettings.maxVolt, tunerSettings.targetTemp, tunerSettings.useBenchmarkProfile, tunerSettings.benchmarkProfileMode]);
 
   // Listen for benchmark events to pause/resume auto-tuner
   useEffect(() => {

@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Store } from '@tauri-apps/plugin-store';
-import { listen } from '@tauri-apps/api/event';
+import { listen, emit } from '@tauri-apps/api/event';
 import {
   type AppSettings,
   type AlertSettings,
@@ -9,6 +9,7 @@ import {
 } from '@/lib/alert-settings';
 
 const SETTINGS_KEY = 'axeos-app-settings';
+const SAVE_DEBOUNCE_MS = 300; // Debounce saves to avoid excessive disk writes
 
 // Check if we're running in Tauri environment
 const isTauri = () => {
@@ -84,6 +85,9 @@ const saveSettingsToStorage = async (settings: AppSettings): Promise<void> => {
 export const useAppSettings = () => {
   const [settings, setSettings] = useState<AppSettings>(defaultAppSettings);
   const [isInitialized, setIsInitialized] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingSettingsRef = useRef<AppSettings | null>(null);
+  const isExternalUpdateRef = useRef(false);
 
   // Initialize settings from storage on mount
   useEffect(() => {
@@ -96,7 +100,7 @@ export const useAppSettings = () => {
     loadSettings();
   }, []);
 
-  // Listen for settings updates from the settings window
+  // Listen for settings updates from other windows
   useEffect(() => {
     if (!isTauri()) return;
 
@@ -105,8 +109,10 @@ export const useAppSettings = () => {
     const setupListener = async () => {
       try {
         unlisten = await listen<AppSettings>('settings-updated', (event) => {
-          // Update settings when received from settings window
+          // Update settings when received from other windows
           if (event.payload) {
+            // Mark as external update to avoid re-emitting
+            isExternalUpdateRef.current = true;
             setSettings({
               alerts: { ...defaultAppSettings.alerts, ...event.payload.alerts },
               power: { ...defaultAppSettings.power, ...event.payload.power },
@@ -125,12 +131,61 @@ export const useAppSettings = () => {
     };
   }, []);
 
+  // Debounced save and emit function
+  const saveAndEmitSettings = useCallback((newSettings: AppSettings) => {
+    pendingSettingsRef.current = newSettings;
+
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Schedule a debounced save
+    saveTimeoutRef.current = setTimeout(async () => {
+      const settingsToSave = pendingSettingsRef.current;
+      if (!settingsToSave) return;
+
+      try {
+        await saveSettingsToStorage(settingsToSave);
+        // Emit to other windows
+        if (isTauri()) {
+          await emit('settings-updated', settingsToSave);
+        }
+        pendingSettingsRef.current = null;
+      } catch (error) {
+        console.error('Failed to save settings:', error);
+      }
+    }, SAVE_DEBOUNCE_MS);
+  }, []);
+
   // Save to storage whenever settings change (after initialization)
   useEffect(() => {
-    if (isInitialized) {
-      saveSettingsToStorage(settings);
+    if (!isInitialized) return;
+
+    // If this was an external update, don't re-emit
+    if (isExternalUpdateRef.current) {
+      isExternalUpdateRef.current = false;
+      return;
     }
-  }, [settings, isInitialized]);
+
+    saveAndEmitSettings(settings);
+  }, [settings, isInitialized, saveAndEmitSettings]);
+
+  // Cleanup pending saves on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        // Flush pending settings synchronously on unmount
+        if (pendingSettingsRef.current) {
+          saveSettingsToStorage(pendingSettingsRef.current);
+          if (isTauri()) {
+            emit('settings-updated', pendingSettingsRef.current);
+          }
+        }
+      }
+    };
+  }, []);
 
   const updateAlertSettings = useCallback((updates: Partial<AlertSettings>) => {
     setSettings(prev => ({

@@ -1,7 +1,5 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { emit } from '@tauri-apps/api/event';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -9,122 +7,20 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Bell, Zap, RotateCcw, Settings, RefreshCw, Info } from 'lucide-react';
-import { Store } from '@tauri-apps/plugin-store';
-import type { AlertSettings, PowerSettings, AppSettings } from '@/lib/alert-settings';
-import { defaultAppSettings } from '@/lib/alert-settings';
 import { VersionInfo } from '@/components/update-banner';
-
-const SETTINGS_KEY = 'axeos-app-settings';
-const SAVE_DEBOUNCE_MS = 500; // Debounce saves to avoid excessive disk writes
+import { useAppSettings } from '@/hooks/use-app-settings';
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<AppSettings>(defaultAppSettings);
-  const [isLoading, setIsLoading] = useState(true);
-  const storeRef = useRef<Store | null>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pendingSettingsRef = useRef<AppSettings | null>(null);
+  const {
+    alertSettings,
+    powerSettings,
+    updateAlertSettings,
+    updatePowerSettings,
+    resetToDefaults,
+    isInitialized,
+  } = useAppSettings();
 
-  // Initialize store and load settings
-  useEffect(() => {
-    let mounted = true;
-
-    const initStore = async () => {
-      try {
-        const storeInstance = await Store.load('settings.json');
-        if (!mounted) return;
-
-        storeRef.current = storeInstance;
-
-        const stored = await storeInstance.get<AppSettings>(SETTINGS_KEY);
-        if (!mounted) return;
-
-        if (stored) {
-          setSettings({
-            alerts: { ...defaultAppSettings.alerts, ...stored.alerts },
-            power: { ...defaultAppSettings.power, ...stored.power },
-          });
-        }
-      } catch (error) {
-        console.error('Failed to load settings:', error);
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    initStore();
-
-    return () => {
-      mounted = false;
-      // Save any pending changes on unmount
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        if (pendingSettingsRef.current && storeRef.current) {
-          storeRef.current.set(SETTINGS_KEY, pendingSettingsRef.current);
-          storeRef.current.save();
-          emit('settings-updated', pendingSettingsRef.current);
-        }
-      }
-    };
-  }, []);
-
-  // Debounced save function
-  const saveSettings = useCallback((newSettings: AppSettings) => {
-    pendingSettingsRef.current = newSettings;
-
-    // Clear any existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    // Schedule a debounced save
-    saveTimeoutRef.current = setTimeout(async () => {
-      const store = storeRef.current;
-      const settingsToSave = pendingSettingsRef.current;
-
-      if (store && settingsToSave) {
-        try {
-          await store.set(SETTINGS_KEY, settingsToSave);
-          await store.save();
-          await emit('settings-updated', settingsToSave);
-          pendingSettingsRef.current = null;
-        } catch (error) {
-          console.error('Failed to save settings:', error);
-        }
-      }
-    }, SAVE_DEBOUNCE_MS);
-  }, []);
-
-  const updateAlertSettings = useCallback((updates: Partial<AlertSettings>) => {
-    setSettings(prev => {
-      const newSettings = {
-        ...prev,
-        alerts: { ...prev.alerts, ...updates },
-      };
-      saveSettings(newSettings);
-      return newSettings;
-    });
-  }, [saveSettings]);
-
-  const updatePowerSettings = useCallback((updates: Partial<PowerSettings>) => {
-    setSettings(prev => {
-      const newSettings = {
-        ...prev,
-        power: { ...prev.power, ...updates },
-      };
-      saveSettings(newSettings);
-      return newSettings;
-    });
-  }, [saveSettings]);
-
-  const resetToDefaults = useCallback(() => {
-    setSettings(defaultAppSettings);
-    saveSettings(defaultAppSettings);
-  }, [saveSettings]);
-
-  const alertSettings = settings.alerts;
-  const powerSettings = settings.power;
+  const isLoading = !isInitialized;
 
   if (isLoading) {
     return (

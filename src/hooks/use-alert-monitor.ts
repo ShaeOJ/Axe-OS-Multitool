@@ -42,6 +42,7 @@ function calculateAvgHashrate(history: { hashrate: number }[]): number | null {
 
 /**
  * Hook that monitors miner states and triggers alerts based on settings
+ * Optimized to only process miners whose state actually changed
  */
 export function useAlertMonitor(
   miners: MinerConfig[],
@@ -50,6 +51,7 @@ export function useAlertMonitor(
 ) {
   const { toast } = useToast();
   const prevSnapshots = useRef<Record<string, MinerSnapshot>>({});
+  const prevMinerStatesRef = useRef<Record<string, MinerState>>({});
   const isFirstRun = useRef(true);
   const benchmarkingMiners = useRef<Set<string>>(new Set());
   const hashrateAlertCooldowns = useRef<Record<string, number>>({});
@@ -103,11 +105,31 @@ export function useAlertMonitor(
         };
       });
       prevSnapshots.current = initialSnapshots;
+      prevMinerStatesRef.current = { ...minerStates };
       isFirstRun.current = false;
       return;
     }
 
-    miners.forEach(miner => {
+    // Optimization: Only process miners whose state reference actually changed
+    // This significantly reduces work when only one miner updates
+    const changedMinerIps = miners.filter(miner => {
+      const prevState = prevMinerStatesRef.current[miner.ip];
+      const currentState = minerStates[miner.ip];
+      // Check if the state reference changed (shallow comparison is sufficient
+      // because miner-dashboard creates new state objects on updates)
+      return prevState !== currentState;
+    }).map(m => m.ip);
+
+    // If no miners changed, skip processing entirely
+    if (changedMinerIps.length === 0) {
+      return;
+    }
+
+    // Update the ref for next comparison
+    prevMinerStatesRef.current = { ...minerStates };
+
+    // Only process miners that actually changed
+    miners.filter(m => changedMinerIps.includes(m.ip)).forEach(miner => {
       const state = minerStates[miner.ip];
       const prev = prevSnapshots.current[miner.ip];
       const minerName = miner.name || state?.info?.hostname || miner.ip;

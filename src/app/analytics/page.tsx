@@ -107,22 +107,31 @@ export default function AnalyticsPage() {
   const lastValidHistoryRef = useRef<MinerState['history']>([]);
   const lastMinerIpRef = useRef<string>('');
 
-  // Update the ref when we have valid history data
+  // Update history cache in useEffect to avoid render-time side effects
   const currentHistory = selectedMinerState?.history;
 
-  // Clear history cache if we switched miners
-  if (selectedMinerIp !== lastMinerIpRef.current) {
-    lastMinerIpRef.current = selectedMinerIp;
-    lastValidHistoryRef.current = currentHistory || [];
-  } else if (currentHistory && currentHistory.length > 0) {
-    // Same miner - update cache with new data
-    lastValidHistoryRef.current = currentHistory;
-  }
+  useEffect(() => {
+    // Clear history cache if we switched miners
+    if (selectedMinerIp !== lastMinerIpRef.current) {
+      lastMinerIpRef.current = selectedMinerIp;
+      lastValidHistoryRef.current = currentHistory || [];
+    } else if (currentHistory && currentHistory.length > 0) {
+      // Same miner - update cache with new data
+      lastValidHistoryRef.current = currentHistory;
+    }
+  }, [selectedMinerIp, currentHistory]);
 
   // Use current history if available, otherwise fall back to last valid (for same miner)
-  const stableHistory = (currentHistory && currentHistory.length > 0)
-    ? currentHistory
-    : lastValidHistoryRef.current;
+  const stableHistory = useMemo(() => {
+    if (currentHistory && currentHistory.length > 0) {
+      return currentHistory;
+    }
+    // Only use cached history if it's for the same miner
+    if (selectedMinerIp === lastMinerIpRef.current) {
+      return lastValidHistoryRef.current;
+    }
+    return [];
+  }, [currentHistory, selectedMinerIp]);
 
   if (!data) {
     return (
